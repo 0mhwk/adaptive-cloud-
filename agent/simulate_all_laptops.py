@@ -65,6 +65,9 @@ fleet_history: dict[str, collections.deque[dict[str, Any]]] = {
 }
 fleet_lock = threading.Lock()
 
+# Dynamic live anomalies container for demonstration
+active_anomalies: dict[str, dict[str, Any]] = {}
+
 # Registered AWS EC2 Cloud Fleet (ap-south-1 Mumbai)
 registered_aws_workers: list[dict[str, Any]] = [
     {
@@ -220,6 +223,18 @@ def generate_fleet_snapshots() -> None:
         },
     }
 
+    # Inject dynamic live anomaly metrics if currently activated
+    if "aws-worker-01" in active_anomalies:
+        anom = active_anomalies["aws-worker-01"]
+        snap_aws["cpu"] = anom.get("cpu", 93.5)
+        snap_aws["mem"] = anom.get("mem", 79.2)
+        snap_aws["conn_count"] = anom.get("conn_count", 480)
+        snap_aws["load"] = 4.8
+        snap_aws["extra"]["top_cpu_processes"] = anom.get("processes", [
+            {"name": "syn_flood_ingress", "pid": 9811, "cpu_percent": 84.5},
+            {"name": "python3 (agent)", "pid": 1102, "cpu_percent": 6.8},
+        ])
+
     # AWS WORKER 2: ap-south-1a (Mumbai) — Healthy secondary worker
     snap_aws2 = {
         "id": f"m-aws2-{int(now_ts * 1000)}",
@@ -269,16 +284,24 @@ def background_loop() -> None:
 
 
 class MultiLaptopHandler(BaseHTTPRequestHandler):
-    def _set_cors(self, content_type: str = "application/json") -> None:
-        self.send_response(200)
+    def _send_json(self, data: Any, status_code: int = 200) -> None:
+        payload = json.dumps(data).encode("utf-8")
+        self.send_response(status_code)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS, POST")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS, POST, PUT, DELETE")
         self.send_header("Access-Control-Allow-Headers", "*")
-        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
+        self.wfile.write(payload)
 
     def do_OPTIONS(self) -> None:
-        self._set_cors()
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS, POST, PUT, DELETE")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def do_POST(self) -> None:
         clean = self.path.split("?")[0]
@@ -292,8 +315,7 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
         # Permission Gate: POST /incidents/{id}/approve
         if "/approve" in clean:
             parts = clean.strip("/").split("/")
-            # e.g. incidents/inc-001/approve
-            inc_id = parts[1] if len(parts) >= 3 else parts[0]
+            inc_id = parts[-2] if len(parts) >= 2 else parts[0]
             try:
                 action_ids = body.get("action_ids")
                 decided_by = body.get("decided_by", "Operator")
@@ -307,19 +329,18 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                     comment=comment,
                     dry_run=dry_run,
                 )
-                self._set_cors()
-                self.wfile.write(json.dumps(updated).encode("utf-8"))
+                active_anomalies.clear()
+                generate_fleet_snapshots()
+                self._send_json(updated, 200)
                 return
             except Exception as e:
-                self.send_response(400)
-                self._set_cors()
-                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                self._send_json({"error": str(e)}, 400)
                 return
 
         # Permission Gate: POST /incidents/{id}/reject
         if "/reject" in clean:
             parts = clean.strip("/").split("/")
-            inc_id = parts[1] if len(parts) >= 3 else parts[0]
+            inc_id = parts[-2] if len(parts) >= 2 else parts[0]
             try:
                 decided_by = body.get("decided_by", "Operator")
                 comment = body.get("comment", "")
@@ -329,19 +350,16 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                     decided_by=decided_by,
                     comment=comment,
                 )
-                self._set_cors()
-                self.wfile.write(json.dumps(updated).encode("utf-8"))
+                self._send_json(updated, 200)
                 return
             except Exception as e:
-                self.send_response(400)
-                self._set_cors()
-                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                self._send_json({"error": str(e)}, 400)
                 return
 
         # Rollback: POST /incidents/{id}/rollback
         if "/rollback" in clean:
             parts = clean.strip("/").split("/")
-            inc_id = parts[1] if len(parts) >= 3 else parts[0]
+            inc_id = parts[-2] if len(parts) >= 2 else parts[0]
             try:
                 decided_by = body.get("decided_by", "Operator")
                 comment = body.get("comment", "")
@@ -353,17 +371,103 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                     comment=comment,
                     dry_run=dry_run,
                 )
-                self._set_cors()
-                self.wfile.write(json.dumps(updated).encode("utf-8"))
+                self._send_json(updated, 200)
                 return
             except Exception as e:
-                self.send_response(400)
-                self._set_cors()
-                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                self._send_json({"error": str(e)}, 400)
                 return
 
-        self.send_response(404)
-        self.end_headers()
+        # Anomaly Injection: POST /demo/inject or /api/v1/demo/inject
+        if clean in ("/demo/inject", "/api/v1/demo/inject"):
+            host_id = body.get("host_id", "aws-worker-01")
+            attack_type = body.get("attack_type", "ddos").lower()
+            try:
+                from scripts.aws_cloud_monitor import trigger_aws_incident
+                inc = trigger_aws_incident(
+                    attack_type=attack_type,
+                    target_host="AdaptiveCloud-Worker-01 (i-017c3c1add524779c)",
+                )
+            except Exception as exc:
+                inc = {"incident_id": f"inc-aws-manual-{int(time.time())}", "error": str(exc)}
+
+            if attack_type == "ddos":
+                active_anomalies[host_id] = {
+                    "cpu": 93.8,
+                    "mem": 78.4,
+                    "conn_count": 520,
+                    "type": "ddos",
+                    "processes": [
+                        {"name": "syn_flood_ingress", "pid": 9811, "cpu_percent": 84.5},
+                        {"name": "iptables_drop", "pid": 9812, "cpu_percent": 7.4},
+                    ],
+                }
+            elif attack_type == "cryptomining":
+                active_anomalies[host_id] = {
+                    "cpu": 98.6,
+                    "mem": 86.2,
+                    "conn_count": 45,
+                    "type": "cryptomining",
+                    "processes": [
+                        {"name": "xmrig_miner", "pid": 9941, "cpu_percent": 89.4},
+                        {"name": "stratum_daemon", "pid": 9942, "cpu_percent": 8.1},
+                    ],
+                }
+            elif attack_type == "brute_force":
+                active_anomalies[host_id] = {
+                    "cpu": 52.0,
+                    "mem": 58.0,
+                    "conn_count": 185,
+                    "type": "brute_force",
+                    "processes": [
+                        {"name": "sshd_auth_fail", "pid": 9710, "cpu_percent": 34.0},
+                        {"name": "hydra_spray", "pid": 9711, "cpu_percent": 12.0},
+                    ],
+                }
+            else:
+                active_anomalies[host_id] = {
+                    "cpu": 85.0,
+                    "mem": 88.0,
+                    "conn_count": 95,
+                    "type": attack_type,
+                    "processes": [
+                        {"name": "sql_inject_probe", "pid": 9601, "cpu_percent": 74.0},
+                    ],
+                }
+
+            # Force immediate telemetry snapshot refresh across fleet
+            generate_fleet_snapshots()
+
+            self._send_json({
+                "success": True,
+                "incident": inc,
+                "active_anomaly": active_anomalies[host_id],
+            }, 200)
+            return
+
+        # Anomaly Resolver: POST /demo/resolve or /api/v1/demo/resolve
+        if clean in ("/demo/resolve", "/api/v1/demo/resolve"):
+            host_id = body.get("host_id", "aws-worker-01")
+            active_anomalies.pop(host_id, None)
+            generate_fleet_snapshots()
+            self._send_json({"success": True, "status": "normal"}, 200)
+            return
+
+        # Autonomous Instant Self-Healing: POST /demo/heal or /api/v1/demo/heal or /heal
+        if clean in ("/demo/heal", "/api/v1/demo/heal", "/heal", "/api/v1/heal") or clean.endswith("/auto_heal"):
+            inc_id = body.get("incident_id")
+            host_id = body.get("host_id", "aws-worker-01")
+            active_anomalies.clear()
+            healed = incident_store.auto_heal(inc_id)
+            generate_fleet_snapshots()
+            self._send_json({
+                "success": True,
+                "status": "healed",
+                "incident": healed,
+                "message": "Autonomous self-healing completed. Threat neutralized without operator delay.",
+            }, 200)
+            return
+
+        self._send_json({"error": "Endpoint not found"}, 404)
 
     def do_GET(self) -> None:
         parsed_url = urllib.parse.urlparse(self.path)
@@ -372,20 +476,21 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
 
         # GET /incidents or /api/v1/incidents
         if clean in ("/incidents", "/api/v1/incidents"):
-            self._set_cors()
             incident_store.check_expirations(timeout_seconds=3600)
             family = query_params.get("family", [None])[0]
             status_param = query_params.get("status", [None])[0]
             source = query_params.get("source", [None])[0]
+            host_id_param = query_params.get("host_id", [None])[0]
             limit_param = int(query_params.get("limit", ["100"])[0])
 
             items = incident_store.list_incidents(
                 family=family,
                 status=status_param,
                 source=source,
+                host_id=host_id_param,
                 limit=limit_param,
             )
-            self.wfile.write(json.dumps(items).encode("utf-8"))
+            self._send_json(items)
             return
 
         # GET /incidents/{id}
@@ -394,17 +499,12 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
             inc_id = parts[-1]
             inc = incident_store.get_incident(inc_id)
             if inc:
-                self._set_cors()
-                self.wfile.write(json.dumps(inc).encode("utf-8"))
+                self._send_json(inc)
             else:
-                self.send_response(404)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": f"Incident {inc_id} not found"}).encode("utf-8"))
+                self._send_json({"error": f"Incident {inc_id} not found"}, 404)
             return
 
         if clean in ("/", "/info", "/status"):
-            self._set_cors()
             info = {
                 "status": "online",
                 "hostname": HOSTNAME,
@@ -413,11 +513,10 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                 "is_physical": True,
                 "active_laptops": 4,
             }
-            self.wfile.write(json.dumps(info).encode("utf-8"))
+            self._send_json(info)
             return
 
         if clean in ("/hosts", "/api/v1/hosts"):
-            self._set_cors()
             # Pull live readings from fleet history
             with fleet_lock:
                 l1 = fleet_history["host-laptop-01"][-1] if fleet_history["host-laptop-01"] else {}
@@ -535,11 +634,10 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
             for aw in registered_aws_workers:
                 if aw["id"] not in existing_ids:
                     hosts_list.append({**aw, "last_seen": datetime.now(timezone.utc).isoformat()})
-            self.wfile.write(json.dumps(hosts_list).encode("utf-8"))
+            self._send_json(hosts_list)
             return
 
         if clean in ("/peers", "/peer-laptops"):
-            self._set_cors()
             peers = {
                 "host-laptop-02": {
                     "hostname": "LAB-WORKSTATION-A",
@@ -566,7 +664,7 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                     "mem": 68,
                 },
             }
-            self.wfile.write(json.dumps(peers).encode("utf-8"))
+            self._send_json(peers)
             return
 
         for card_id in ["host-laptop-01", "host-laptop-02", "host-laptop-03", "host-laptop-04", "aws-worker-01", "aws-worker-02"]:
@@ -578,7 +676,6 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                 or clean == f"/api/v1/{card_id}/telemetry"
                 or (card_id == "host-laptop-01" and clean in ("/telemetry", "/api/v1/telemetry"))
             ):
-                self._set_cors()
                 with fleet_lock:
                     pts = list(fleet_history[card_id])
                 payload = {
@@ -587,11 +684,10 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                     "points": pts,
                     "latest": pts[-1] if pts else {},
                 }
-                self.wfile.write(json.dumps(payload).encode("utf-8"))
+                self._send_json(payload)
                 return
 
-        self.send_response(404)
-        self.end_headers()
+        self._send_json({"error": "Not found"}, 404)
 
     def log_message(self, format: str, *args: Any) -> None:
         pass

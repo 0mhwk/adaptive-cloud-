@@ -1,28 +1,17 @@
 // frontend/src/pages/PredictiveMaintenancePage.tsx
-// Page 4: Predictive Maintenance — failure probability gauges + AWS fleet health
+// Page 4: Predictive Maintenance — failure probability gauges + clickable fleet nodes
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/api/client';
-import { Activity, Cpu, HardDrive, MemoryStick, Server, AlertTriangle, CheckCircle2, Cloud, Laptop } from 'lucide-react';
+import {
+  Activity, Cpu, HardDrive, Server, AlertTriangle,
+  CheckCircle2, Cloud, Laptop, ChevronRight, MemoryStick,
+} from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import NodeModal from '@/components/dashboard/NodeModal';
+import type { LiveHost } from '@/components/dashboard/NodeModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface LiveHost {
-  id: string;
-  display_label: string;
-  ip_address: string;
-  status: string;
-  cpu: number;
-  mem: number;
-  disk: number;
-  is_cloud?: boolean;
-  os_version?: string;
-  instance_id?: string;
-  region?: string;
-  launch_time?: string;
-  type?: string;
-}
-
 interface MetricPoint {
   id: string;
   host_id: string;
@@ -35,7 +24,6 @@ interface MetricPoint {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function failureProbability(value: number, threshold: number = 85): number {
-  // Logistic-style: low below threshold, sharply rising above
   if (value <= threshold * 0.5) return Math.round(value * 0.3);
   if (value <= threshold) return Math.round(value * 0.6);
   const excess = value - threshold;
@@ -53,10 +41,19 @@ function trendSlope(points: number[]): number {
   return den === 0 ? 0 : num / den;
 }
 
-function RiskGauge({ label, value, unit = '%', icon: Icon }: { label: string; value: number; unit?: string; icon: React.ElementType }) {
+function compositeRisk(cpu: number, mem: number, disk: number): number {
+  return Math.round(failureProbability(cpu) * 0.5 + failureProbability(mem) * 0.3 + failureProbability(disk) * 0.2);
+}
+
+// ── RiskGauge ─────────────────────────────────────────────────────────────────
+function RiskGauge({ label, value, icon: Icon }: { label: string; value: number; icon: React.ElementType }) {
   const failProb = failureProbability(value);
   const color = failProb >= 70 ? '#ef4444' : failProb >= 40 ? '#f97316' : '#22c55e';
-  const bgColor = failProb >= 70 ? 'border-red-500/30 bg-red-500/5' : failProb >= 40 ? 'border-orange-500/30 bg-orange-500/5' : 'border-zinc-800 bg-zinc-900/60';
+  const bgColor = failProb >= 70
+    ? 'border-red-500/30 bg-red-500/5'
+    : failProb >= 40
+    ? 'border-orange-500/30 bg-orange-500/5'
+    : 'border-zinc-800 bg-zinc-900/60';
   const radius = 32;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (failProb / 100) * circumference;
@@ -67,16 +64,12 @@ function RiskGauge({ label, value, unit = '%', icon: Icon }: { label: string; va
         <Icon className="w-3.5 h-3.5 text-zinc-400" />
         <span className="text-[10px] font-bold font-mono uppercase text-zinc-400">{label}</span>
       </div>
-
-      {/* SVG circular gauge */}
       <div className="relative w-20 h-20 flex items-center justify-center">
         <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
           <circle cx="40" cy="40" r={radius} stroke="#27272a" strokeWidth="6" fill="none" />
           <circle
             cx="40" cy="40" r={radius}
-            stroke={color}
-            strokeWidth="6"
-            fill="none"
+            stroke={color} strokeWidth="6" fill="none"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
             strokeLinecap="round"
@@ -88,12 +81,10 @@ function RiskGauge({ label, value, unit = '%', icon: Icon }: { label: string; va
           <p className="text-[9px] text-zinc-500 leading-none">fail risk</p>
         </div>
       </div>
-
       <div className="text-center">
-        <p className="text-2xl font-bold font-mono text-white">{value.toFixed(1)}{unit}</p>
+        <p className="text-2xl font-bold font-mono text-white">{value.toFixed(1)}%</p>
         <p className="text-[10px] text-zinc-500">current usage</p>
       </div>
-
       <div className={`w-full text-center py-1 rounded-lg text-[10px] font-bold ${
         failProb >= 70 ? 'bg-red-500/20 text-red-400' : failProb >= 40 ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'
       }`}>
@@ -103,15 +94,73 @@ function RiskGauge({ label, value, unit = '%', icon: Icon }: { label: string; va
   );
 }
 
+// ── NodeCard ──────────────────────────────────────────────────────────────────
+function NodeCard({ host, isActive, onClick }: { host: LiveHost; isActive: boolean; onClick: () => void }) {
+  const risk = compositeRisk(host.cpu, host.mem, host.disk ?? 0);
+  const riskColor = risk >= 70 ? 'text-red-400' : risk >= 40 ? 'text-orange-400' : 'text-emerald-400';
+  const borderColor = risk >= 70 ? 'border-red-500/40' : risk >= 40 ? 'border-orange-500/30' : isActive ? 'border-blue-500/50' : 'border-zinc-800';
+
+  return (
+    <div
+      onClick={onClick}
+      className={`group relative bg-zinc-900/80 border ${borderColor} rounded-xl p-4 cursor-pointer hover:border-blue-500/40 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/5`}
+    >
+      {/* Click to inspect hint */}
+      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 text-[9px] text-blue-400 font-mono bg-blue-500/10 border border-blue-500/20 rounded px-1.5 py-0.5">
+          <ChevronRight className="w-2.5 h-2.5" />
+          INSPECT
+        </div>
+      </div>
+
+      <div className="flex items-start gap-3 mb-3">
+        <div className={`p-2 rounded-lg ${host.is_cloud ? 'bg-blue-500/10' : 'bg-purple-500/10'}`}>
+          {host.is_cloud ? <Cloud className="w-4 h-4 text-blue-400" /> : <Laptop className="w-4 h-4 text-purple-400" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-white truncate">{host.display_label}</p>
+          <p className="text-[10px] text-zinc-500 font-mono">{host.ip_address}</p>
+        </div>
+      </div>
+
+      {/* Metrics bars */}
+      <div className="space-y-1.5">
+        {[
+          { label: 'CPU', value: host.cpu, color: 'bg-red-400' },
+          { label: 'MEM', value: host.mem, color: 'bg-blue-400' },
+          { label: 'DISK', value: host.disk ?? 0, color: 'bg-amber-400' },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="flex items-center gap-2">
+            <span className="text-[9px] text-zinc-500 font-mono w-7">{label}</span>
+            <div className="flex-1 h-1 bg-zinc-800 rounded-full">
+              <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${Math.min(100, value)}%` }} />
+            </div>
+            <span className="text-[9px] text-zinc-400 font-mono w-8 text-right">{value.toFixed(0)}%</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Composite risk */}
+      <div className="mt-3 pt-3 border-t border-zinc-800/60 flex items-center justify-between">
+        <span className="text-[9px] text-zinc-500 font-mono uppercase">Composite Fail Risk</span>
+        <span className={`text-sm font-bold font-mono ${riskColor}`}>{risk}%</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function PredictiveMaintenancePage() {
-  const [selectedHost, setSelectedHost] = useState<string>('');
+  const [selectedMetricHostId, setSelectedMetricHostId] = useState<string>('');
+  const [modalHost, setModalHost] = useState<LiveHost | null>(null);
 
   const { data: hosts = [] } = useQuery<LiveHost[]>({
     queryKey: ['hosts-maintenance'],
     queryFn: async () => {
-      try { const r = await api.get('/hosts'); return r.data; }
-      catch {
+      try {
+        const r = await api.get('/hosts');
+        return r.data;
+      } catch {
         return [
           { id: 'host-laptop-01', display_label: 'Local Host (Physical)', ip_address: '192.168.1.100', status: 'online', cpu: 32, mem: 55, disk: 48, is_cloud: false },
           { id: 'aws-worker-01', display_label: 'AWS EC2 Worker 01', ip_address: '3.108.250.115', status: 'online', cpu: 18, mem: 44, disk: 23, is_cloud: true },
@@ -121,7 +170,7 @@ export default function PredictiveMaintenancePage() {
     refetchInterval: 10000,
   });
 
-  const activeId = selectedHost || (hosts.length > 0 ? hosts[0].id : '');
+  const activeId = selectedMetricHostId || (hosts.length > 0 ? hosts[0].id : '');
   const activeHost = hosts.find(h => h.id === activeId);
 
   const { data: metrics = [] } = useQuery<MetricPoint[]>({
@@ -132,7 +181,6 @@ export default function PredictiveMaintenancePage() {
         const r = await api.get(`/hosts/${activeId}/metrics`, { params: { limit: 30 } });
         return r.data?.points ?? r.data ?? [];
       } catch {
-        // Generate smooth synthetic history
         const now = Date.now();
         const baseCpu = activeHost?.cpu ?? 30;
         const baseMem = activeHost?.mem ?? 50;
@@ -169,6 +217,7 @@ export default function PredictiveMaintenancePage() {
 
   const awsHosts = hosts.filter(h => h.is_cloud);
   const localHosts = hosts.filter(h => !h.is_cloud);
+  const allHostsSorted = [...awsHosts, ...localHosts];
 
   return (
     <div className="space-y-6">
@@ -179,27 +228,50 @@ export default function PredictiveMaintenancePage() {
           Predictive Maintenance
         </h1>
         <p className="text-xs text-zinc-500 mt-0.5">
-          Failure probability analysis using Theil-Sen regression on live telemetry
+          Failure probability analysis using Theil-Sen regression · Click any node to open full intelligence dossier
         </p>
       </div>
 
-      {/* Host selector */}
-      <div className="flex flex-wrap gap-2">
-        {hosts.map(h => (
-          <button
-            key={h.id}
-            onClick={() => setSelectedHost(h.id)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              activeId === h.id
-                ? 'bg-white text-black border-white shadow'
-                : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
-            }`}
-          >
-            {h.is_cloud ? <Cloud className="w-3.5 h-3.5" /> : <Laptop className="w-3.5 h-3.5" />}
-            {h.display_label}
-            <span className={`w-1.5 h-1.5 rounded-full ${h.status === 'online' ? 'bg-green-400' : 'bg-zinc-600'}`} />
-          </button>
-        ))}
+      {/* Fleet Node Cards — clickable */}
+      <div>
+        <p className="text-[10px] text-zinc-500 uppercase font-mono font-bold tracking-wider mb-3 flex items-center gap-2">
+          <Server className="w-3.5 h-3.5" />
+          Fleet Health Overview — Click node to inspect
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {allHostsSorted.map(h => (
+            <NodeCard
+              key={h.id}
+              host={h}
+              isActive={h.id === activeId}
+              onClick={() => setModalHost(h)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Host selector pills */}
+      <div>
+        <p className="text-[10px] text-zinc-500 uppercase font-mono font-bold tracking-wider mb-2">
+          Telemetry Detail — Select Node
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {hosts.map(h => (
+            <button
+              key={h.id}
+              onClick={() => setSelectedMetricHostId(h.id)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                activeId === h.id
+                  ? 'bg-white text-black border-white shadow'
+                  : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
+              }`}
+            >
+              {h.is_cloud ? <Cloud className="w-3.5 h-3.5" /> : <Laptop className="w-3.5 h-3.5" />}
+              {h.display_label}
+              <span className={`w-1.5 h-1.5 rounded-full ${h.status === 'online' ? 'bg-green-400' : 'bg-zinc-600'}`} />
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Failure risk gauges */}
@@ -298,6 +370,7 @@ export default function PredictiveMaintenancePage() {
           <div className="flex items-center gap-2 px-5 py-3.5 border-b border-zinc-800">
             <Cloud className="w-4 h-4 text-blue-400" />
             <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">AWS Cloud Fleet Health</h2>
+            <span className="ml-auto text-[10px] text-zinc-500 font-mono">Click row → Full dossier</span>
           </div>
           <table className="w-full text-xs">
             <thead>
@@ -307,21 +380,25 @@ export default function PredictiveMaintenancePage() {
                 <th className="px-5 py-2.5 text-left">CPU</th>
                 <th className="px-5 py-2.5 text-left">RAM</th>
                 <th className="px-5 py-2.5 text-left">Disk</th>
-                <th className="px-5 py-2.5 text-left">CPU Fail Risk</th>
+                <th className="px-5 py-2.5 text-left">Composite Risk</th>
                 <th className="px-5 py-2.5 text-left">Status</th>
               </tr>
             </thead>
             <tbody>
               {awsHosts.map(h => {
-                const cfp = failureProbability(h.cpu ?? 0);
+                const risk = compositeRisk(h.cpu ?? 0, h.mem ?? 0, h.disk ?? 0);
                 return (
-                  <tr key={h.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                  <tr
+                    key={h.id}
+                    onClick={() => setModalHost(h)}
+                    className="border-b border-zinc-800/50 hover:bg-zinc-800/40 transition-colors cursor-pointer"
+                  >
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
                         <Cloud className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
                         <div>
                           <p className="font-semibold text-white">{h.display_label}</p>
-                          <p className="text-[10px] text-zinc-500 font-mono">{h.os_version}</p>
+                          <p className="text-[10px] text-zinc-500 font-mono">{h.instance_id ?? h.os_version}</p>
                         </div>
                       </div>
                     </td>
@@ -333,18 +410,18 @@ export default function PredictiveMaintenancePage() {
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-1.5 bg-zinc-800 rounded-full">
                           <div
-                            className={`h-full rounded-full ${cfp >= 70 ? 'bg-red-500' : cfp >= 40 ? 'bg-orange-400' : 'bg-green-400'}`}
-                            style={{ width: `${cfp}%` }}
+                            className={`h-full rounded-full ${risk >= 70 ? 'bg-red-500' : risk >= 40 ? 'bg-orange-400' : 'bg-green-400'}`}
+                            style={{ width: `${risk}%` }}
                           />
                         </div>
-                        <span className={`text-[10px] font-mono font-bold ${cfp >= 70 ? 'text-red-400' : cfp >= 40 ? 'text-orange-400' : 'text-green-400'}`}>
-                          {cfp}%
+                        <span className={`text-[10px] font-mono font-bold ${risk >= 70 ? 'text-red-400' : risk >= 40 ? 'text-orange-400' : 'text-green-400'}`}>
+                          {risk}%
                         </span>
                       </div>
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-1.5">
-                        <div className={`w-1.5 h-1.5 rounded-full ${h.status === 'online' ? 'bg-green-400' : 'bg-zinc-600'}`} />
+                        <div className={`w-1.5 h-1.5 rounded-full ${h.status === 'online' ? 'bg-green-400 animate-pulse' : 'bg-zinc-600'}`} />
                         <span className="text-[10px] text-zinc-400 capitalize">{h.status}</span>
                       </div>
                     </td>
@@ -368,6 +445,14 @@ export default function PredictiveMaintenancePage() {
           </p>
         </div>
       </div>
+
+      {/* Node Intelligence Modal */}
+      {modalHost && (
+        <NodeModal
+          host={modalHost}
+          onClose={() => setModalHost(null)}
+        />
+      )}
     </div>
   );
 }
