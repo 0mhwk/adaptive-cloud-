@@ -1,10 +1,10 @@
-# AI-Based Adaptive Cloud Security & Predictive Maintenance System
+# AdaptiveCloud: Autonomous Self-Healing Cloud & Infrastructure Security Framework
 
-> **Budget: ₹0 | Cloud: GCP Free Trial | Dev: Windows 10/11 + Docker Desktop (WSL2 backend)**
+> **Standalone Full-Stack Cloud Security, RCA & Self-Healing Governance Platform**
 
 A production-style, full-stack AI security monitoring and autonomous self-healing platform that:
-- Collects real-time telemetry from **Windows Server 2022 GCP VMs** and **4 Physical Laptops** using `psutil` + `pywin32`
-- Runs hierarchical **Tier 1 (9 Canonical Families)** and **Tier 2 (MITRE ATT&CK techniques)** classification on 5-feature behavioral vectors
+- Collects real-time telemetry from **Cloud VMs, Servers, and Endpoint Nodes** using `psutil` + `pywin32`
+- Runs hierarchical **Tier 1 (Canonical Threat Families)** and **Tier 2 (MITRE ATT&CK techniques)** classification across a **238-Attack Taxonomy** on 5-feature behavioral vectors
 - Synthesizes evidence-grounded **Root Cause Analysis (RCA)** from actual feature deviations against baseline
 - Enforces a strict **Human Approval Gate**: Zero disruptive playbooks execute without explicit operator authorization
 - Executes scoped countermeasures under **dry-run** by default, verifies recovery via live telemetry probes, and provides **1-click rollback**

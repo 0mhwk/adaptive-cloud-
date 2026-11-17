@@ -1,33 +1,45 @@
 @echo off
 echo =====================================================================
-echo Removing Secrets & Pushing Clean Repo to GitHub
+echo    AdaptiveCloud - Standalone Clean Push to GitHub (No GCP Secrets)
+echo    Repo: https://github.com/pradnyandongre24-creator/adaptivecloud-security.git
 echo =====================================================================
+echo.
 cd /d "%~dp0"
 
-echo 1. Creating clean orphan branch without secret history...
-git checkout --orphan clean_main
+echo [1/6] Disconnecting old commit history containing secrets...
+git checkout --orphan standalone_main
 
-echo 2. Removing sensitive credentials from git index...
-git rm --cached backend/gcp_credentials.json 2>nul
+echo.
+echo [2/6] Unstaging any GCP credentials or deploy files...
+git rm --cached -r -f backend/gcp_credentials.json 2>nul
+git rm --cached -r -f deploy/gcp 2>nul
+git rm --cached -r -f deploy_to_google_cloud.bat 2>nul
+git rm --cached -r -f deploy_to_google_cloud.ps1 2>nul
 
-echo 3. Staging all clean files (dashboard, 238 dataset, playbooks, paper)...
+echo.
+echo [3/6] Staging all clean project files...
 git add -A
 
-echo 4. Creating fresh commit...
-git commit -m "Initial commit: AdaptiveCloud autonomous self-healing cloud security framework"
+echo.
+echo [4/6] Committing clean project...
+git commit -m "feat: AdaptiveCloud autonomous self-healing cloud security & RCA framework (standalone release)"
 
-echo 5. Setting main branch...
+echo.
+echo [5/6] Resetting main branch...
 git branch -D main 2>nul
 git branch -m main
 
-echo 6. Pushing cleanly to your GitHub repository...
+echo.
+echo [6/6] Pushing cleanly to your GitHub repository...
 git push -u origin main --force
 
+echo.
 echo =====================================================================
 if %ERRORLEVEL% EQU 0 (
-    echo [SUCCESS] Pushed cleanly without any secret warnings!
+    echo [SUCCESS] Your project has been pushed cleanly to GitHub!
+    echo Visit: https://github.com/pradnyandongre24-creator/adaptivecloud-security
 ) else (
-    echo [NOTICE] If still blocked, use the unblock URL in your browser.
+    echo [ERROR] Push failed. Check your network or GitHub login.
 )
 echo =====================================================================
 pause

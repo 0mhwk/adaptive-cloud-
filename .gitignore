@@ -36,6 +36,8 @@ secrets/
 secrets.yml
 backend/gcp_credentials.json
 *credentials*.json
+deploy/gcp/
+deploy_to_google_cloud.*
 
 # ── Certificates & Keys ──────────────────────────────────────────────────────
 *.pem
