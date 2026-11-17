@@ -62,6 +62,8 @@ fleet_history: dict[str, collections.deque[dict[str, Any]]] = {
     "host-laptop-04": collections.deque(maxlen=HISTORY_LEN),
     "aws-worker-01": collections.deque(maxlen=HISTORY_LEN),
     "aws-worker-02": collections.deque(maxlen=HISTORY_LEN),
+    "aws-gateway-01": collections.deque(maxlen=HISTORY_LEN),
+    "aws-db-01": collections.deque(maxlen=HISTORY_LEN),
 }
 fleet_lock = threading.Lock()
 
@@ -75,10 +77,11 @@ registered_aws_workers: list[dict[str, Any]] = [
         "instance_id": "i-017c3c1add524779c",
         "name": "AdaptiveCloud-Worker-01",
         "display_label": "AWS EC2 Worker 01 (i-017c3c1add524779c)",
-        "type": "t2.micro",
+        "type": "t2.micro (Free Tier)",
         "state": "running",
+        "ip_address": "3.108.250.115",
         "public_ip": "3.108.250.115",
-        "private_ip": "172.31.39.112",
+        "private_ip": "172.31.6.242",
         "region": "ap-south-1b (Mumbai)",
         "os_version": "Amazon Linux 2023 (ap-south-1b)",
         "agent_platform": "linux",
@@ -89,7 +92,70 @@ registered_aws_workers: list[dict[str, Any]] = [
         "mem": 44.5,
         "disk": 22.8,
         "launch_time": "2026-11-17T09:27:00Z",
-    }
+    },
+    {
+        "id": "aws-worker-02",
+        "instance_id": "i-0ab2c3d4e5f678901",
+        "name": "AdaptiveCloud-Worker-02",
+        "display_label": "AWS EC2 Worker 02 (ap-south-1a)",
+        "type": "t2.micro (Free Tier)",
+        "state": "running",
+        "ip_address": "13.233.142.76",
+        "public_ip": "13.233.142.76",
+        "private_ip": "172.31.18.94",
+        "region": "ap-south-1a (Mumbai)",
+        "os_version": "Amazon Linux 2023 (ap-south-1a)",
+        "agent_platform": "linux",
+        "status": "online",
+        "is_cloud": True,
+        "is_physical": False,
+        "cpu": 14.5,
+        "mem": 38.2,
+        "disk": 19.5,
+        "launch_time": "2026-11-17T11:15:00Z",
+    },
+    {
+        "id": "aws-gateway-01",
+        "instance_id": "i-09f1a238e5b4c10aa",
+        "name": "AWS-Ingress-Gateway-01",
+        "display_label": "AWS Cloud Ingress Gateway (i-09f1a238e5b4c10aa)",
+        "type": "t3.medium (WAF Edge)",
+        "state": "running",
+        "ip_address": "13.127.88.204",
+        "public_ip": "13.127.88.204",
+        "private_ip": "172.31.10.5",
+        "region": "ap-south-1b (Mumbai)",
+        "os_version": "Amazon Linux 2023 (ALB Edge)",
+        "agent_platform": "linux",
+        "status": "online",
+        "is_cloud": True,
+        "is_physical": False,
+        "cpu": 22.0,
+        "mem": 48.0,
+        "disk": 24.5,
+        "launch_time": "2026-11-17T08:00:00Z",
+    },
+    {
+        "id": "aws-db-01",
+        "instance_id": "i-0bb8214f9d0c24e12",
+        "name": "AWS-Database-Primary",
+        "display_label": "AWS RDS Database Primary (i-0bb8214f9d0c24e12)",
+        "type": "m5.large (EBS Volume)",
+        "state": "running",
+        "ip_address": "13.235.19.44",
+        "public_ip": "13.235.19.44",
+        "private_ip": "172.31.28.11",
+        "region": "ap-south-1a (Mumbai)",
+        "os_version": "Amazon Linux 2023 (PostgreSQL)",
+        "agent_platform": "linux",
+        "status": "online",
+        "is_cloud": True,
+        "is_physical": False,
+        "cpu": 28.5,
+        "mem": 62.0,
+        "disk": 44.0,
+        "launch_time": "2026-11-17T07:30:00Z",
+    },
 ]
 
 HOSTNAME = socket.gethostname()
@@ -223,18 +289,6 @@ def generate_fleet_snapshots() -> None:
         },
     }
 
-    # Inject dynamic live anomaly metrics if currently activated
-    if "aws-worker-01" in active_anomalies:
-        anom = active_anomalies["aws-worker-01"]
-        snap_aws["cpu"] = anom.get("cpu", 93.5)
-        snap_aws["mem"] = anom.get("mem", 79.2)
-        snap_aws["conn_count"] = anom.get("conn_count", 480)
-        snap_aws["load"] = 4.8
-        snap_aws["extra"]["top_cpu_processes"] = anom.get("processes", [
-            {"name": "syn_flood_ingress", "pid": 9811, "cpu_percent": 84.5},
-            {"name": "python3 (agent)", "pid": 1102, "cpu_percent": 6.8},
-        ])
-
     # AWS WORKER 2: ap-south-1a (Mumbai) — Healthy secondary worker
     snap_aws2 = {
         "id": f"m-aws2-{int(now_ts * 1000)}",
@@ -253,13 +307,116 @@ def generate_fleet_snapshots() -> None:
         },
     }
 
+    # AWS Ingress Gateway (WAF / Edge ALB)
+    snap_gw = {
+        "id": f"m-gw-{int(now_ts * 1000)}",
+        "host_id": "aws-gateway-01",
+        "ts": iso_ts,
+        "cpu": round(22.0 + 3.0 * ((t % 6) - 3.0), 1),
+        "mem": 48.0,
+        "disk": 24.5,
+        "conn_count": 85,
+        "load": 0.45,
+        "extra": {
+            "top_cpu_processes": [
+                {"name": "envoy-proxy", "pid": 1050, "cpu_percent": 12.4},
+                {"name": "waf_rate_filter", "pid": 1051, "cpu_percent": 6.8},
+                {"name": "systemd", "pid": 1, "cpu_percent": 0.4},
+            ]
+        },
+    }
+
+    # AWS RDS Primary Database Cluster
+    snap_db = {
+        "id": f"m-db-{int(now_ts * 1000)}",
+        "host_id": "aws-db-01",
+        "ts": iso_ts,
+        "cpu": round(28.0 + 4.0 * ((t % 5) - 2.5), 1),
+        "mem": 62.0,
+        "disk": 44.0,
+        "conn_count": 64,
+        "load": 0.85,
+        "extra": {
+            "top_cpu_processes": [
+                {"name": "postgres: writer", "pid": 2104, "cpu_percent": 14.5},
+                {"name": "postgres: walwriter", "pid": 2105, "cpu_percent": 8.2},
+                {"name": "ebs_sync_daemon", "pid": 2110, "cpu_percent": 3.1},
+            ]
+        },
+    }
+
+    all_snaps = {
+        "host-laptop-01": snap_1,
+        "host-laptop-02": snap_2,
+        "host-laptop-03": snap_3,
+        "host-laptop-04": snap_4,
+        "aws-worker-01": snap_aws,
+        "aws-worker-02": snap_aws2,
+        "aws-gateway-01": snap_gw,
+        "aws-db-01": snap_db,
+    }
+
+    # Universally apply any active anomalies to ANY target host
+    for hid, snap in all_snaps.items():
+        if hid in active_anomalies:
+            anom = active_anomalies[hid]
+            snap["cpu"] = anom.get("cpu", 93.5)
+            snap["mem"] = anom.get("mem", 79.2)
+            snap["conn_count"] = anom.get("conn_count", 480)
+            snap["load"] = 4.8
+            snap["extra"] = {
+                "top_cpu_processes": anom.get("processes", [
+                    {"name": f"{anom.get('type', 'threat')}_payload", "pid": 9811, "cpu_percent": 84.5},
+                    {"name": "python3 (agent)", "pid": 1102, "cpu_percent": 6.8},
+                ])
+            }
+
     with fleet_lock:
-        fleet_history["host-laptop-01"].append(snap_1)
-        fleet_history["host-laptop-02"].append(snap_2)
-        fleet_history["host-laptop-03"].append(snap_3)
-        fleet_history["host-laptop-04"].append(snap_4)
-        fleet_history["aws-worker-01"].append(snap_aws)
-        fleet_history["aws-worker-02"].append(snap_aws2)
+        for hid, snap in all_snaps.items():
+            if hid not in fleet_history:
+                fleet_history[hid] = collections.deque(maxlen=HISTORY_LEN)
+            fleet_history[hid].append(snap)
+
+
+def sync_live_aws_instances() -> None:
+    """Dynamically poll AWS to discover all live EC2 instances via Boto3."""
+    try:
+        from scripts.aws_cloud_monitor import list_ec2_instances
+        live_list = list_ec2_instances()
+        for inst in live_list:
+            if inst.get("is_live_aws"):
+                inst_id = inst.get("instance_id")
+                # Update Worker 01 with live state & IP
+                if inst_id == "i-017c3c1add524779c":
+                    registered_aws_workers[0]["public_ip"] = inst.get("public_ip", "3.108.250.115")
+                    registered_aws_workers[0]["private_ip"] = inst.get("private_ip", "172.31.6.242")
+                    registered_aws_workers[0]["state"] = inst.get("state", "running")
+                else:
+                    new_id = f"aws-{inst_id}"
+                    if not any(w["id"] == new_id for w in registered_aws_workers):
+                        registered_aws_workers.append({
+                            "id": new_id,
+                            "instance_id": inst_id,
+                            "name": inst.get("name", inst_id),
+                            "display_label": f"AWS EC2 ({inst_id})",
+                            "type": inst.get("type", "t2.micro"),
+                            "state": inst.get("state", "running"),
+                            "public_ip": inst.get("public_ip", "N/A"),
+                            "private_ip": inst.get("private_ip", "N/A"),
+                            "region": "ap-south-1 (Mumbai)",
+                            "os_version": "Amazon Linux 2023",
+                            "agent_platform": "linux",
+                            "status": "online" if inst.get("state") == "running" else "offline",
+                            "is_cloud": True,
+                            "is_physical": False,
+                            "cpu": 15.0,
+                            "mem": 42.0,
+                            "disk": 20.0,
+                        })
+                        if new_id not in fleet_history:
+                            fleet_history[new_id] = collections.deque(maxlen=HISTORY_LEN)
+    except Exception as exc:
+        logger.debug("Live AWS sync note: %s", exc)
 
 
 def background_loop() -> None:
@@ -268,15 +425,22 @@ def background_loop() -> None:
         generate_fleet_snapshots()
         time.sleep(0.1)
 
+    sync_live_aws_instances()
+    iter_count = 0
+
     while True:
         try:
             generate_fleet_snapshots()
+            iter_count += 1
+            if iter_count % 15 == 0:
+                sync_live_aws_instances()
+
             logger.info(
-                "Streaming 4 Laptops -> L1 (You): %4.1f%% | L2: %4.1f%% | L3: %4.1f%% | L4: %4.1f%%",
+                "Streaming 8 Fleet Nodes -> L1 (Physical): %4.1f%% | AWS-01 (Live): %4.1f%% | AWS-02: %4.1f%% | AWS-GW: %4.1f%%",
                 fleet_history["host-laptop-01"][-1]["cpu"],
-                fleet_history["host-laptop-02"][-1]["cpu"],
-                fleet_history["host-laptop-03"][-1]["cpu"],
-                fleet_history["host-laptop-04"][-1]["cpu"],
+                fleet_history["aws-worker-01"][-1]["cpu"],
+                fleet_history["aws-worker-02"][-1]["cpu"],
+                fleet_history["aws-gateway-01"][-1]["cpu"],
             )
         except Exception as e:
             logger.error("Simulator error: %s", e)
@@ -381,11 +545,24 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
         if clean in ("/demo/inject", "/api/v1/demo/inject"):
             host_id = body.get("host_id", "aws-worker-01")
             attack_type = body.get("attack_type", "ddos").lower()
+
+            host_label_map = {
+                "aws-worker-01": "AdaptiveCloud-Worker-01 (i-017c3c1add524779c)",
+                "aws-worker-02": "AdaptiveCloud-Worker-02 (i-0ab2c3d4e5f678901)",
+                "aws-gateway-01": "AWS Cloud Ingress Gateway (i-09f1a238e5b4c10aa)",
+                "aws-db-01": "AWS RDS Database Primary (i-0bb8214f9d0c24e12)",
+                "host-laptop-01": f"Local Host ({HOSTNAME})",
+                "host-laptop-02": "Lab Workstation A (Simulated)",
+                "host-laptop-03": "Dev Workstation B (Simulated Linux)",
+                "host-laptop-04": "Field Workstation C (Simulated)",
+            }
+            target_host = host_label_map.get(host_id, f"AWS Node ({host_id})")
+
             try:
                 from scripts.aws_cloud_monitor import trigger_aws_incident
                 inc = trigger_aws_incident(
                     attack_type=attack_type,
-                    target_host="AdaptiveCloud-Worker-01 (i-017c3c1add524779c)",
+                    target_host=target_host,
                 )
             except Exception as exc:
                 inc = {"incident_id": f"inc-aws-manual-{int(time.time())}", "error": str(exc)}
@@ -629,11 +806,21 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                     "last_seen": datetime.now(timezone.utc).isoformat(),
                 },
             ]
-            # Dynamically append any additional AWS workers registered in registered_aws_workers
+            # Dynamically append all AWS workers registered in registered_aws_workers
             existing_ids = {h["id"] for h in hosts_list}
             for aw in registered_aws_workers:
                 if aw["id"] not in existing_ids:
-                    hosts_list.append({**aw, "last_seen": datetime.now(timezone.utc).isoformat()})
+                    with fleet_lock:
+                        last_snap = fleet_history[aw["id"]][-1] if (aw["id"] in fleet_history and fleet_history[aw["id"]]) else {}
+                    aw_entry = {
+                        **aw,
+                        "cpu": round(last_snap.get("cpu", aw.get("cpu", 15.0)), 1),
+                        "mem": round(last_snap.get("mem", aw.get("mem", 40.0)), 1),
+                        "disk": round(last_snap.get("disk", aw.get("disk", 20.0)), 1),
+                        "last_seen": datetime.now(timezone.utc).isoformat(),
+                    }
+                    hosts_list.append(aw_entry)
+
             self._send_json(hosts_list)
             return
 
@@ -667,7 +854,7 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
             self._send_json(peers)
             return
 
-        for card_id in ["host-laptop-01", "host-laptop-02", "host-laptop-03", "host-laptop-04", "aws-worker-01", "aws-worker-02"]:
+        for card_id in list(fleet_history.keys()):
             if (
                 clean == f"/hosts/{card_id}/metrics"
                 or clean == f"/api/v1/hosts/{card_id}/metrics"

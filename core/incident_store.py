@@ -142,8 +142,17 @@ class IncidentStore:
             query += " AND source = ?"
             params.append(source.lower())
         if host_id:
-            query += " AND (host_id LIKE ? OR host_id = ?)"
-            params.extend([f"%{host_id}%", host_id])
+            patterns = [f"%{host_id}%", host_id]
+            if "aws-worker-01" in host_id:
+                patterns.extend(["%AdaptiveCloud-Worker-01%", "%i-017c3c1add524779c%"])
+            elif "aws-worker-02" in host_id:
+                patterns.extend(["%AdaptiveCloud-Worker-02%", "%i-0ab2c3d4e5f678901%"])
+            elif "laptop-01" in host_id or "local" in host_id.lower():
+                patterns.extend(["%Local Host%", "%Omhwk%"])
+
+            sub_clauses = " OR ".join(["host_id LIKE ?" for _ in patterns])
+            query += f" AND ({sub_clauses})"
+            params.extend(patterns)
 
         query += " ORDER BY created_epoch DESC LIMIT ?"
         params.append(limit)
