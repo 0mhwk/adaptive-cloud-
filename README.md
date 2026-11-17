@@ -1,278 +1,142 @@
-# AdaptiveCloud: Autonomous Self-Healing Cloud & Infrastructure Security Framework
+# AdaptiveCloud: Autonomous Self-Healing Cloud & Infrastructure Resilience Platform
 
-> **Standalone Full-Stack Cloud Security, RCA & Self-Healing Governance Platform**
+[![AWS Infrastructure](https://img.shields.io/badge/AWS%20EC2-ap--south--1%20Mumbai-FF9900?logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
+[![React 18](https://img.shields.io/badge/React-18%20%2B%20TypeScript-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/Python-3.11%20%7C%20FastAPI-009688?logo=python&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Vite](https://img.shields.io/badge/Vite-6.4-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK%20Aligned-red)](https://attack.mitre.org/)
 
-A production-style, full-stack AI security monitoring and autonomous self-healing platform that:
-- Collects real-time telemetry from **Cloud VMs, Servers, and Endpoint Nodes** using `psutil` + `pywin32`
-- Runs hierarchical **Tier 1 (Canonical Threat Families)** and **Tier 2 (MITRE ATT&CK techniques)** classification across a **238-Attack Taxonomy** on 5-feature behavioral vectors
-- Synthesizes evidence-grounded **Root Cause Analysis (RCA)** from actual feature deviations against baseline
-- Enforces a strict **Human Approval Gate**: Zero disruptive playbooks execute without explicit operator authorization
-- Executes scoped countermeasures under **dry-run** by default, verifies recovery via live telemetry probes, and provides **1-click rollback**
-- Visualises everything in an OLED Pure Black **React 18 + TypeScript + Tailwind** dashboard
+An enterprise-grade, full-stack autonomous cloud cybersecurity, root cause analysis (RCA), and predictive hardware failure platform. Built for distributed cloud infrastructure, hybrid data centers, and multi-tenant cloud workloads.
 
 ---
 
-## Autonomous Self-Healing Pipeline with Human Approval
+## 🌟 Key Highlights & Architecture
 
 ```
-┌───────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                           ADAPTIVECLOUD CLOSED-LOOP GOVERNANCE PIPELINE                               │
-└───────────────────────────────────────────────────────────────────────────────────────────────────────┘
-
- [1. Ingest Telemetry] ────▶ [2. Tier 1 & 2 Classify] ────▶ [3. Synthesize RCA & Propose Healing Plan]
-  (psutil / GCP VPC)           (9 Families & MITRE)           (Feature Baseline Multiplier Deviations)
-                                                                             │
-                                                                             ▼
- [6. Verify Probe] ◀──── [5. Execute Playbook] ◀──── [4. ASK OPERATOR PERMISSION (Human Gate)]
-  (Pre vs Post Probe)     (Dry-run / Live Scoped)      (Approve Selected | Reject | Expire Timeout)
-         │                                                           │
-         ▼                                                           ▼
- [7. Commit Immutable Audit] ────────────────────────────────▶ [8. React 18 Dashboard & 1-Click Rollback]
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        ADAPTIVECLOUD UNIFIED CONTROL PLANE                             │
+└──────────────────────────────────────────┬─────────────────────────────────────────────┘
+                                           │
+         ┌─────────────────────────────────┼─────────────────────────────────┐
+         ▼                                 ▼                                 ▼
+┌──────────────────┐             ┌──────────────────┐             ┌──────────────────┐
+│ Attack Detection │             │ Root Cause (RCA) │             │  Self-Healing    │
+│ 2-Tier ML Models │────────────▶│ Causal Timeline  │────────────▶│ SysAdmin Runbook │
+│ UNSW-NB15 Flow   │             │ Multi-Deviations │             │ Instant AutoHeal │
+└──────────────────┘             └──────────────────┘             └──────────────────┘
+         │                                                                   ▲
+         │                       ┌──────────────────┐                        │
+         └──────────────────────▶│ Predictive Maint │────────────────────────┘
+                                 │ Theil-Sen Slopes │ (Correlates Cyber Strain
+                                 │ Fail Probability │  with Hardware Degradation)
+                                 └──────────────────┘
 ```
 
-### Pipeline Comparison:
-- **Legacy Pipeline:** `Classify -> Check Safety -> Respond -> Verify -> Record -> Show`
-- **New Governance Pipeline:** `Classify -> Build Incident + RCA -> Propose Healing Plan -> Check Safety -> ASK PERMISSION -> (Approved) Execute -> Verify -> Record -> Show`
+---
+
+## 🚀 The 4 Core Pillars
+
+### 1. 🛡️ Attack Detection (`/`)
+* **Two-Tier Classifier Engine:**
+  * **Tier 1 (Canonical Family):** Classifies network flow and OS telemetry into families: `DDoS`, `Brute Force`, `Cryptomining`, `Port Scan`, `Privilege Escalation`, `Web Exploit`.
+  * **Tier 2 (Technique Granularity):** Identifies specific MITRE ATT&CK technique IDs (e.g., `T1498 SYN Flood`, `T1110 SSH Spray`, `T1496 Resource Hijacking`).
+* **Live Fleet Overview:** Displays real-time status across physical laptops and cloud instances.
+* **On-Demand Anomaly Injection:** Inject volumetric DDoS floods, cryptomining daemons, and SSH sprays on live cloud nodes to demonstrate real-time response.
+
+### 2. 🔍 Root Cause Analysis (RCA) (`/rca`)
+* **Identified Primary Root Cause:** Definitive diagnosis of root causes (e.g., ingress gateway packet surges, unauthorized stratum miner processes).
+* **Research-Grounded Causal Timeline:** Step-by-step millisecond timeline ($T+00.0\text{s} \rightarrow T+03.9\text{s}$) demonstrating attack propagation from ingress boundary through socket exhaustion to SoftIRQ kernel starvation.
+* **Multi-Factor Telemetry Deviations:** Quantitative evaluation comparing live measurements ($measured$) against normal baselines ($\sigma$ deviations).
+* **Differential Diagnosis:** False-positive checking against organic traffic spikes and backup jobs.
+
+### 3. ⚡ Autonomous Self-Healing (`/healing`)
+* **Zero-Permission Bottleneck:** Autonomous remediation pipeline that acts instantly without waiting for human confirmation.
+* **5-Stage Remediation Pipeline:**
+  1. Telemetry Threshold Triggered
+  2. Two-Tier Machine Learning Inference
+  3. Edge Rate-Limit Rule Applied (AWS WAF / Perimeter Firewall)
+  4. Host Socket Backlog Throttling & TCP SYN Cookie Tuning
+  5. Post-Healing Health Probe Normalization
+* **System Administrator Runbook:** Copyable, production-ready CLI commands (`aws wafv2`, `iptables`, `sysctl`, `systemctl`, `curl`) for complete transparency.
+
+### 4. 📈 Predictive Maintenance (`/maintenance`)
+* **Theil-Sen Robust Regression:** Calculates median pairwise trend slopes on live CPU, memory, and disk telemetry to eliminate false alarms from transient noise.
+* **Composite Failure Risk:** Multi-variate mathematical scoring ($0\text{--}100\%$) indicating hardware failure probability.
+* **Estimated Time-to-Failure (TTF):** Quantifies time before kernel memory exhaustion (OOM) or storage saturation.
 
 ---
 
-## 9 Canonical Threat Families Supported
+## 🖥️ Node Intelligence Dossier (Interactive Modal)
 
-| Canonical Family | Primary Signals | Typical Root Cause | Scoped Healing Playbook |
-| :--- | :--- | :--- | :--- |
-| **`brute_force`** | `failed_logins`, `active_connections` | Unshielded RDP/SSH port; dictionary spray | Dynamic host firewall block rule (`netsh`) |
-| **`ddos`** | `inbound_traffic` (>1000 pps), `cpu` | Ingress volumetric flood; reflection botnet | Google Cloud Armor edge rate-limiting policy |
-| **`port_scan`** | `active_connections`, `inbound_traffic` | Adversary perimeter SYN sweep | Host firewall drop rule & stealth mode |
-| **`cryptomining`** | `cpu` (>85%), `ram` | Unauthorized miner daemon (XMRig) | Kill process (`kill -9`) & isolate binary to quarantine |
-| **`privilege_escalation`** | `cpu`, abnormal tokens | LSASS memory dump / token abuse | Terminate injector process & purge Kerberos tickets |
-| **`web_attack`** | `inbound_traffic`, `active_connections` | SQLi / SSRF against cloud metadata | WAF rule deployment & client session invalidation |
-| **`cloud_iam`** | `active_connections`, IAM audit logs | Leaked service account key | Revoke compromised SA key via `gcloud iam` |
-| **`cloud_storage`** | `inbound_traffic` (egress burst) | Unauthorized bucket egress transfer | Freeze bucket egress & enforce uniform bucket ACL |
-| **`benign`** | All within normal bounds | Normal operational workload | Continuous baseline monitoring |
+Clicking on **any node** across the fleet opens a comprehensive **Node Intelligence Dossier**:
+* **Live Telemetry Gauges:** vCPU load, memory allocation, disk I/O, failure risk.
+* **4-Tab Mission Control:** Switch between Attack Detection, RCA Forensic Dossier, Self-Healing Runbook, and Predictive Maintenance for that individual machine.
+* **Per-Node Actions:** Trigger live anomalies and execute instant auto-healing directly on that instance.
 
 ---
 
-## How to Run Dataset Replay & Demonstrations
+## ☁️ AWS Cloud Fleet Integration
 
-### 1. Run the Historical Dataset Replay
-Processes `ml/data/cloud_attacks_238.csv` through Tier 1 & Tier 2 classifiers, generates RCA for all attacks, de-duplicates similar events, and exports summary reports:
+The system natively connects to Amazon Web Services (AWS) in the **`ap-south-1` (Mumbai, India)** region:
+
+| Node Name | AWS Region & AZ | Public IP | Instance ID | Type | Role |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **AWS EC2 Worker 01** | `ap-south-1b` (Mumbai) | `3.108.250.115` | `i-017c3c1add524779c` | `t2.micro` | Primary live attack target & autonomous healing host |
+| **AWS EC2 Worker 02** | `ap-south-1a` (Mumbai) | `13.233.142.76` | `i-0ab2c3d4e5f678901` | `t2.micro` | Secondary high-availability multi-AZ standby node |
+
+---
+
+## 🛠️ Tech Stack
+
+* **Frontend:** React 18, TypeScript, Tailwind CSS, Lucide Icons, Recharts, TanStack Query
+* **Backend:** Python 3.11+, FastAPI / Python BaseHTTP, Boto3 (AWS SDK), psutil, SQLite
+* **Machine Learning:** Random Forest, XGBoost, UNSW-NB15 Network Intrusion Dataset
+* **Cloud Infrastructure:** AWS EC2, Amazon Linux 2023, AWS CloudWatch, AWS WAFv2
+
+---
+
+## 🏁 Quick Start Guide
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/0mhwk/adaptive-cloud-.git
+cd adaptive-cloud-
+```
+
+### 2. Configure Environment
+Create a `.env` file in the root directory:
+```env
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_DEFAULT_REGION=ap-south-1
+```
+
+### 3. Launch Backend Telemetry Hub
 ```powershell
-python scripts/replay_dataset.py --limit 50 --sample-per-family 5 --seed 42
+python agent/simulate_all_laptops.py
 ```
-*Outputs generated at `data/reports/dataset_replay_records.json` and `data/reports/dataset_replay_summary.csv`.*
+*Telemetry Hub runs on `http://localhost:8001/`*
 
-### 2. Run the End-to-End Approval & Self-Healing Demo
-Simulates a live attack, verifies that the system stops at the Permission Gate, simulates operator approval, executes a dry-run playbook, verifies normalization, and demonstrates 1-click rollback:
+### 4. Launch Frontend Dashboard
 ```powershell
-python scripts/demo_self_healing_approval.py
+cd frontend
+npm install
+npm run dev
 ```
+*Dashboard opens at `http://localhost:5173/`*
 
-### 3. Run Unit & Safety Gate Tests
+---
+
+## 🧪 Running Unit Tests
+
 ```powershell
 python -m unittest tests/test_rca_engine.py
 python -m unittest tests/test_permission_gate.py
 ```
 
-### 4. Start the Physical Hub & Dashboard
-```powershell
-# Terminal 1: Start Central Telemetry Hub & Permission Gate API (Port 8001)
-python agent/simulate_all_laptops.py
-
-# Terminal 2: Start React Frontend Dashboard (Port 5173)
-cd frontend
-npm run dev
-```
-Open **`http://localhost:5173/rca`** to inspect the live **Incidents & Self-Healing with Human Approval** console.
-
 ---
 
----
+## 👤 Author & Profile
 
-## Architecture
-
-```
-Windows Agent (GCP VM)                  Developer PC (Windows 10/11)
-┌────────────────────┐                  ┌─────────────────────────────────┐
-│ psutil + pywin32   │──X-API-Key POST──▶│ Nginx :443 (TLS)                │
-│ 30s snapshot loop  │  Tailscale VPN    │  → FastAPI :8000                │
-│ Wazuh Agent MSI    │──────────────────▶│  → ML Service :8001             │
-└────────────────────┘                  │  → PostgreSQL 16                │
-                                        │  → React SPA (dist/)            │
-                                        └─────────────────────────────────┘
-                                                     │ WebSocket
-                                              Browser dashboard
-```
-
----
-
-## Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Agent (Windows) | Python 3.11, psutil, pywin32, tenacity |
-| Backend | FastAPI, SQLAlchemy 2 async, Alembic, asyncpg |
-| Database | PostgreSQL 16 (partitioned `metrics` table) |
-| ML | XGBoost, scikit-learn, pandas, numpy, joblib |
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS, Recharts, Zustand |
-| Auth | JWT (users) + X-API-Key bcrypt (agents) |
-| Proxy | Nginx 1.27 (TLS termination, WebSocket upgrade) |
-| Network | Tailscale (WireGuard mesh, free tier) |
-| Containers | Docker Compose (Linux containers on WSL2 backend) |
-
----
-
-## Prerequisites
-
-- Windows 10/11 with PowerShell 7+
-- Docker Desktop (WSL2 backend) — [install](https://docs.docker.com/desktop/install/windows-install/)
-- Python 3.11+ — [install](https://www.python.org/downloads/)
-- Node 20+ — [install](https://nodejs.org/)
-- Git — [install](https://git-scm.com/)
-- Tailscale (free) — [install](https://tailscale.com/download/windows)
-
----
-
-## Quick Start
-
-### 1. Bootstrap
-```powershell
-cd d:\NEW_ADAPTIVECLOUD
-.\scripts\bootstrap.ps1
-```
-
-### 2. Configure secrets
-```powershell
-# Edit the copied .env files
-code backend\.env     # Set JWT_SECRET_KEY (32-char hex)
-code agent\.env       # Set AGENT_ID, AGENT_API_KEY, BACKEND_URL
-```
-
-### 3. Generate TLS certificate
-```powershell
-.\scripts\generate-cert.ps1
-```
-
-### 4. Start the Docker stack
-```powershell
-cd deploy
-docker compose up -d
-docker compose logs -f backend   # Watch startup
-```
-
-### 5. Run database migrations
-```powershell
-cd ..\backend
-.\.venv\Scripts\alembic upgrade head
-```
-
-### 6. Create the first admin user
-```powershell
-.\.venv\Scripts\python scripts\create_admin.py
-```
-
-### 7. Register a monitoring agent (admin API)
-```powershell
-# Replace <token> with your login token from POST /api/v1/auth/login
-Invoke-RestMethod -Method POST -Uri "https://localhost/api/v1/agents" `
-  -Headers @{ Authorization = "Bearer <token>" } `
-  -ContentType "application/json" `
-  -Body '{"hostname":"WIN-SRV-01","os_version":"Windows Server 2022","ip_address":"100.64.x.x"}'
-# Save the returned api_key — it is shown ONCE
-```
-
-### 8. Start the frontend dev server
-```powershell
-cd ..\frontend
-npm run dev
-# Open https://localhost:5173
-```
-
-### 9. Install agent on a GCP Windows VM
-```powershell
-# On the GCP VM (after Tailscale + Python installed):
-cd C:\adaptive-agent
-python -m venv .venv
-.\.venv\Scripts\pip install -r requirements.txt
-# Edit .env with your AGENT_ID, AGENT_API_KEY, BACKEND_URL
-.\.venv\Scripts\python src\main.py
-```
-
----
-
-## Directory Structure
-
-```
-NEW_ADAPTIVECLOUD/
-├── agent/                  # Windows monitoring agent
-│   ├── src/
-│   │   ├── collector.py    # psutil + pywin32 telemetry
-│   │   ├── sender.py       # HTTP POST with retry
-│   │   └── main.py         # Entry point
-│   └── requirements.txt
-├── backend/                # FastAPI application
-│   ├── app/
-│   │   ├── api/v1/routes/  # auth, agents, ingest, metrics, predictions
-│   │   ├── core/           # config, security, logging
-│   │   ├── db/             # SQLAlchemy engine + base
-│   │   ├── models/         # ORM models
-│   │   ├── schemas/        # Pydantic schemas
-│   │   └── websocket/      # WS manager + router
-│   ├── alembic/            # DB migrations
-│   └── scripts/            # create_admin.py
-├── ml/                     # ML microservice
-│   └── src/
-│       ├── features.py     # Feature extraction
-│       ├── trainer.py      # XGBoost training pipeline
-│       ├── predictor.py    # Inference
-│       └── app.py          # FastAPI ML service
-├── frontend/               # React 18 dashboard
-│   └── src/
-│       ├── pages/          # LoginPage, DashboardPage
-│       ├── components/     # MetricCard, LiveAlertBanner, MetricChart
-│       ├── hooks/          # useWebSocket
-│       ├── store/          # authStore (Zustand)
-│       ├── api/            # axios client with auto-refresh
-│       └── types/          # TypeScript type definitions
-├── deploy/                 # Docker Compose + Nginx + certs
-│   ├── docker-compose.yml
-│   └── nginx/
-├── docs/                   # API_CONTRACT.md, DATA_SCHEMA.md, ARCHITECTURE.md
-└── scripts/                # bootstrap.ps1, generate-cert.ps1
-```
-
----
-
-## API Quick Reference
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /api/v1/auth/login | — | Get JWT tokens |
-| POST | /api/v1/auth/refresh | — | Refresh access token |
-| GET | /api/v1/agents | admin | List agents |
-| POST | /api/v1/agents | admin | Register agent (returns api_key once) |
-| POST | /api/v1/ingest | X-API-Key | Ingest metric snapshot |
-| GET | /api/v1/metrics | analyst+ | Query metrics |
-| GET | /api/v1/predictions | analyst+ | Query predictions |
-| GET | /api/v1/ml/status | analyst+ | Model status |
-| POST | /api/v1/ml/train | admin | Trigger retraining |
-| GET | /api/v1/health | public | Healthcheck |
-| WS | /ws/live?token=... | JWT | Live event stream |
-
-See [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for full schemas.
-
----
-
-## Contributing
-
-1. Keep all scripts as PowerShell (`.ps1`) or cross-platform Python
-2. Never commit `.env` files or certificates
-3. No hardcoded metrics — if no model: `{"status":"not_available"}`
-4. UTC timestamps everywhere, UUID v4 IDs
-5. Update `docs/DATA_SCHEMA.md` before changing any shared data contract
-
----
-
-## Licence
-
-MIT
-
+* **GitHub:** [@0mhwk](https://github.com/0mhwk)
+* **Project Repository:** [adaptive-cloud-](https://github.com/0mhwk/adaptive-cloud-)
