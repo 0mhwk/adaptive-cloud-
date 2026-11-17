@@ -57,27 +57,33 @@ logger = logging.getLogger("MultiLaptopSimulator")
 # Storage for all physical & AWS cloud nodes
 fleet_history: dict[str, collections.deque[dict[str, Any]]] = {
     "host-laptop-01": collections.deque(maxlen=HISTORY_LEN),
+    "aws-worker-01": collections.deque(maxlen=HISTORY_LEN),
+    "aws-worker-02": collections.deque(maxlen=HISTORY_LEN),
+    "aws-worker-03": collections.deque(maxlen=HISTORY_LEN),
+    "aws-worker-04": collections.deque(maxlen=HISTORY_LEN),
+    "aws-worker-05": collections.deque(maxlen=HISTORY_LEN),
+    "aws-worker-06": collections.deque(maxlen=HISTORY_LEN),
     "host-laptop-02": collections.deque(maxlen=HISTORY_LEN),
     "host-laptop-03": collections.deque(maxlen=HISTORY_LEN),
     "host-laptop-04": collections.deque(maxlen=HISTORY_LEN),
-    "aws-worker-01": collections.deque(maxlen=HISTORY_LEN),
-    "aws-worker-02": collections.deque(maxlen=HISTORY_LEN),
-    "aws-gateway-01": collections.deque(maxlen=HISTORY_LEN),
-    "aws-db-01": collections.deque(maxlen=HISTORY_LEN),
 }
 fleet_lock = threading.Lock()
 
 # Dynamic live anomalies container for demonstration
 active_anomalies: dict[str, dict[str, Any]] = {}
 
-# Registered AWS EC2 Cloud Fleet (ap-south-1 Mumbai)
+# 6 Real Live AWS EC2 Cloud Instances (ap-south-1 Mumbai)
 registered_aws_workers: list[dict[str, Any]] = [
     {
         "id": "aws-worker-01",
         "instance_id": "i-017c3c1add524779c",
-        "name": "AdaptiveCloud-Worker-01",
-        "display_label": "AWS EC2 Worker 01 (i-017c3c1add524779c)",
-        "type": "t2.micro (Free Tier)",
+        "name": "AdaptiveCloud-Worker-01-IngressGateway",
+        "display_label": "Worker 01 · Ingress Gateway (i-017c3c1add524779c)",
+        "role": "Edge Ingress Gateway & Reverse Proxy",
+        "role_description": "Terminates public TLS, handles CloudFront/ALB edge traffic, routes REST/gRPC traffic, and enforces WAF rate-limiting.",
+        "recommended_attack": "ddos",
+        "attack_label": "Volumetric DDoS / SYN Flood (T1498)",
+        "type": "t2.micro (AWS ap-south-1b)",
         "state": "running",
         "ip_address": "3.108.250.115",
         "public_ip": "3.108.250.115",
@@ -95,66 +101,128 @@ registered_aws_workers: list[dict[str, Any]] = [
     },
     {
         "id": "aws-worker-02",
-        "instance_id": "i-0ab2c3d4e5f678901",
-        "name": "AdaptiveCloud-Worker-02",
-        "display_label": "AWS EC2 Worker 02 (ap-south-1a)",
-        "type": "t2.micro (Free Tier)",
+        "instance_id": "i-062792c1aed63a040",
+        "name": "AdaptiveCloud-Worker-02-AppServer",
+        "display_label": "Worker 02 · App Server (i-062792c1aed63a040)",
+        "role": "Compute Application Server & Containers",
+        "role_description": "Runs business logic container pods, async Celery task queues, and microservice compute runtimes.",
+        "recommended_attack": "cryptomining",
+        "attack_label": "Cryptomining Daemon & CPU Hijacking (T1496)",
+        "type": "t2.micro (AWS ap-south-1a)",
         "state": "running",
-        "ip_address": "13.233.142.76",
-        "public_ip": "13.233.142.76",
-        "private_ip": "172.31.18.94",
+        "ip_address": "13.126.94.94",
+        "public_ip": "13.126.94.94",
+        "private_ip": "172.31.36.110",
         "region": "ap-south-1a (Mumbai)",
         "os_version": "Amazon Linux 2023 (ap-south-1a)",
         "agent_platform": "linux",
         "status": "online",
         "is_cloud": True,
         "is_physical": False,
-        "cpu": 14.5,
-        "mem": 38.2,
-        "disk": 19.5,
-        "launch_time": "2026-11-17T11:15:00Z",
+        "cpu": 22.4,
+        "mem": 48.0,
+        "disk": 26.5,
+        "launch_time": "2026-11-17T18:40:00Z",
     },
     {
-        "id": "aws-gateway-01",
-        "instance_id": "i-09f1a238e5b4c10aa",
-        "name": "AWS-Ingress-Gateway-01",
-        "display_label": "AWS Cloud Ingress Gateway (i-09f1a238e5b4c10aa)",
-        "type": "t3.medium (WAF Edge)",
+        "id": "aws-worker-03",
+        "instance_id": "i-0b486412d8078ec4b",
+        "name": "AdaptiveCloud-Worker-03-BastionHost",
+        "display_label": "Worker 03 · Bastion Host (i-0b486412d8078ec4b)",
+        "role": "SSH Administrative Jumpbox & Bastion",
+        "role_description": "Single secure point of administrative SSH ingress into private VPC subnets with PAM authentication and auditd logging.",
+        "recommended_attack": "brute_force",
+        "attack_label": "SSH Password Spray & Brute Force (T1110)",
+        "type": "t2.micro (AWS ap-south-1b)",
         "state": "running",
-        "ip_address": "13.127.88.204",
-        "public_ip": "13.127.88.204",
-        "private_ip": "172.31.10.5",
+        "ip_address": "3.111.51.29",
+        "public_ip": "3.111.51.29",
+        "private_ip": "172.31.6.32",
         "region": "ap-south-1b (Mumbai)",
-        "os_version": "Amazon Linux 2023 (ALB Edge)",
+        "os_version": "Amazon Linux 2023 (ap-south-1b)",
         "agent_platform": "linux",
         "status": "online",
         "is_cloud": True,
         "is_physical": False,
-        "cpu": 22.0,
-        "mem": 48.0,
-        "disk": 24.5,
-        "launch_time": "2026-11-17T08:00:00Z",
+        "cpu": 5.4,
+        "mem": 28.5,
+        "disk": 18.2,
+        "launch_time": "2026-11-17T18:40:00Z",
     },
     {
-        "id": "aws-db-01",
-        "instance_id": "i-0bb8214f9d0c24e12",
-        "name": "AWS-Database-Primary",
-        "display_label": "AWS RDS Database Primary (i-0bb8214f9d0c24e12)",
-        "type": "m5.large (EBS Volume)",
+        "id": "aws-worker-04",
+        "instance_id": "i-0293219dcfcc1f414",
+        "name": "AdaptiveCloud-Worker-04-Microservice",
+        "display_label": "Worker 04 · Microservice Node (i-0293219dcfcc1f414)",
+        "role": "Internal VPC Microservice (Auth & Payments)",
+        "role_description": "Internal cluster service communicating over private VPC subnets via gRPC and Redis cache for session tokens.",
+        "recommended_attack": "port_scan",
+        "attack_label": "Lateral Port Scan & Reconnaissance (T1046)",
+        "type": "t2.micro (AWS ap-south-1a)",
         "state": "running",
-        "ip_address": "13.235.19.44",
-        "public_ip": "13.235.19.44",
-        "private_ip": "172.31.28.11",
+        "ip_address": "13.206.205.230",
+        "public_ip": "13.206.205.230",
+        "private_ip": "172.31.42.116",
         "region": "ap-south-1a (Mumbai)",
-        "os_version": "Amazon Linux 2023 (PostgreSQL)",
+        "os_version": "Amazon Linux 2023 (ap-south-1a)",
+        "agent_platform": "linux",
+        "status": "online",
+        "is_cloud": True,
+        "is_physical": False,
+        "cpu": 16.8,
+        "mem": 42.0,
+        "disk": 24.0,
+        "launch_time": "2026-11-17T18:40:00Z",
+    },
+    {
+        "id": "aws-worker-05",
+        "instance_id": "i-0a70f7c7afdcbed3a",
+        "name": "AdaptiveCloud-Worker-05-StorageEngine",
+        "display_label": "Worker 05 · Storage Engine (i-0a70f7c7afdcbed3a)",
+        "role": "Cloud Database & EBS Volume Engine",
+        "role_description": "Executes relational PostgreSQL database storage, transaction write-ahead logs (WAL), and high-IOPS EBS volume sync.",
+        "recommended_attack": "cloud_storage",
+        "attack_label": "EBS Ransomware & Data Exfiltration (T1537 / T1486)",
+        "type": "t2.micro (AWS ap-south-1a)",
+        "state": "running",
+        "ip_address": "65.0.17.9",
+        "public_ip": "65.0.17.9",
+        "private_ip": "172.31.35.62",
+        "region": "ap-south-1a (Mumbai)",
+        "os_version": "Amazon Linux 2023 (ap-south-1a)",
         "agent_platform": "linux",
         "status": "online",
         "is_cloud": True,
         "is_physical": False,
         "cpu": 28.5,
-        "mem": 62.0,
-        "disk": 44.0,
-        "launch_time": "2026-11-17T07:30:00Z",
+        "mem": 64.0,
+        "disk": 46.2,
+        "launch_time": "2026-11-17T18:40:00Z",
+    },
+    {
+        "id": "aws-worker-06",
+        "instance_id": "i-02867c8160a8e5363",
+        "name": "AdaptiveCloud-Worker-06-HACanary",
+        "display_label": "Worker 06 · HA Canary (i-02867c8160a8e5363)",
+        "role": "HA Canary Node & Golden Baseline Benchmark",
+        "role_description": "Pristine reference baseline instance continuously audited for 99.99% SLA availability and differential drift detection.",
+        "recommended_attack": "canary_drift",
+        "attack_label": "SLA Verification & Golden Baseline (Nominal Benchmark)",
+        "type": "t2.micro (AWS ap-south-1b)",
+        "state": "running",
+        "ip_address": "15.252.180.38",
+        "public_ip": "15.252.180.38",
+        "private_ip": "172.31.15.176",
+        "region": "ap-south-1b (Mumbai)",
+        "os_version": "Amazon Linux 2023 (ap-south-1b)",
+        "agent_platform": "linux",
+        "status": "online",
+        "is_cloud": True,
+        "is_physical": False,
+        "cpu": 11.4,
+        "mem": 32.0,
+        "disk": 18.0,
+        "launch_time": "2026-11-17T18:40:00Z",
     },
 ]
 
@@ -270,77 +338,116 @@ def generate_fleet_snapshots() -> None:
         },
     }
 
-    # AWS WORKER: AdaptiveCloud-Worker-01 (i-017c3c1add524779c)
-    snap_aws = {
-        "id": f"m-aws-{int(now_ts * 1000)}",
+    # AWS WORKER 01: AdaptiveCloud-Worker-01-IngressGateway (i-017c3c1add524779c)
+    snap_aws1 = {
+        "id": f"m-aws1-{int(now_ts * 1000)}",
         "host_id": "aws-worker-01",
         "ts": iso_ts,
-        "cpu": round(18.0 + 3.0 * ((t % 5) - 2.0), 1),
+        "cpu": round(18.2 + 2.5 * ((t % 5) - 2.0), 1),
         "mem": 44.5,
         "disk": 22.8,
-        "conn_count": 14,
+        "conn_count": 135,
         "load": 0.35,
         "extra": {
             "top_cpu_processes": [
-                {"name": "python3 (agent)", "pid": 1102, "cpu_percent": 1.2},
-                {"name": "systemd", "pid": 1, "cpu_percent": 0.4},
-                {"name": "sshd", "pid": 890, "cpu_percent": 0.2},
+                {"name": "nginx: worker process", "pid": 1102, "cpu_percent": 4.5},
+                {"name": "envoy-ingress", "pid": 1103, "cpu_percent": 3.8},
+                {"name": "waf_rate_filter", "pid": 1104, "cpu_percent": 1.2},
             ]
         },
     }
 
-    # AWS WORKER 2: ap-south-1a (Mumbai) — Healthy secondary worker
+    # AWS WORKER 02: AdaptiveCloud-Worker-02-AppServer (i-062792c1aed63a040)
     snap_aws2 = {
         "id": f"m-aws2-{int(now_ts * 1000)}",
         "host_id": "aws-worker-02",
         "ts": iso_ts,
-        "cpu": round(14.0 + 2.0 * ((t % 7) - 3.5), 1),
-        "mem": 38.2,
-        "disk": 19.5,
-        "conn_count": 8,
-        "load": 0.22,
-        "extra": {
-            "top_cpu_processes": [
-                {"name": "nginx", "pid": 1201, "cpu_percent": 0.8},
-                {"name": "systemd", "pid": 1, "cpu_percent": 0.3},
-            ]
-        },
-    }
-
-    # AWS Ingress Gateway (WAF / Edge ALB)
-    snap_gw = {
-        "id": f"m-gw-{int(now_ts * 1000)}",
-        "host_id": "aws-gateway-01",
-        "ts": iso_ts,
-        "cpu": round(22.0 + 3.0 * ((t % 6) - 3.0), 1),
+        "cpu": round(22.4 + 3.0 * ((t % 4) - 2.0), 1),
         "mem": 48.0,
-        "disk": 24.5,
-        "conn_count": 85,
+        "disk": 26.5,
+        "conn_count": 38,
         "load": 0.45,
         "extra": {
             "top_cpu_processes": [
-                {"name": "envoy-proxy", "pid": 1050, "cpu_percent": 12.4},
-                {"name": "waf_rate_filter", "pid": 1051, "cpu_percent": 6.8},
-                {"name": "systemd", "pid": 1, "cpu_percent": 0.4},
+                {"name": "containerd-shim", "pid": 1205, "cpu_percent": 5.2},
+                {"name": "node-api-server", "pid": 1206, "cpu_percent": 4.1},
+                {"name": "python3 (worker)", "pid": 1207, "cpu_percent": 2.8},
             ]
         },
     }
 
-    # AWS RDS Primary Database Cluster
-    snap_db = {
-        "id": f"m-db-{int(now_ts * 1000)}",
-        "host_id": "aws-db-01",
+    # AWS WORKER 03: AdaptiveCloud-Worker-03-BastionHost (i-0b486412d8078ec4b)
+    snap_aws3 = {
+        "id": f"m-aws3-{int(now_ts * 1000)}",
+        "host_id": "aws-worker-03",
         "ts": iso_ts,
-        "cpu": round(28.0 + 4.0 * ((t % 5) - 2.5), 1),
-        "mem": 62.0,
-        "disk": 44.0,
-        "conn_count": 64,
+        "cpu": round(5.2 + 1.0 * ((t % 3) - 1.5), 1),
+        "mem": 28.5,
+        "disk": 18.2,
+        "conn_count": 4,
+        "load": 0.08,
+        "extra": {
+            "top_cpu_processes": [
+                {"name": "sshd: [priv]", "pid": 1301, "cpu_percent": 0.6},
+                {"name": "auditd", "pid": 1302, "cpu_percent": 0.4},
+                {"name": "fail2ban-server", "pid": 1303, "cpu_percent": 0.2},
+            ]
+        },
+    }
+
+    # AWS WORKER 04: AdaptiveCloud-Worker-04-Microservice (i-0293219dcfcc1f414)
+    snap_aws4 = {
+        "id": f"m-aws4-{int(now_ts * 1000)}",
+        "host_id": "aws-worker-04",
+        "ts": iso_ts,
+        "cpu": round(16.8 + 2.5 * ((t % 6) - 3.0), 1),
+        "mem": 42.0,
+        "disk": 24.0,
+        "conn_count": 42,
+        "load": 0.28,
+        "extra": {
+            "top_cpu_processes": [
+                {"name": "spring-boot-runtime", "pid": 1401, "cpu_percent": 4.8},
+                {"name": "envoy-sidecar", "pid": 1402, "cpu_percent": 2.2},
+                {"name": "redis-client", "pid": 1403, "cpu_percent": 1.1},
+            ]
+        },
+    }
+
+    # AWS WORKER 05: AdaptiveCloud-Worker-05-StorageEngine (i-0a70f7c7afdcbed3a)
+    snap_aws5 = {
+        "id": f"m-aws5-{int(now_ts * 1000)}",
+        "host_id": "aws-worker-05",
+        "ts": iso_ts,
+        "cpu": round(28.5 + 3.5 * ((t % 5) - 2.5), 1),
+        "mem": 64.0,
+        "disk": 46.2,
+        "conn_count": 68,
         "load": 0.85,
         "extra": {
             "top_cpu_processes": [
-                {"name": "postgres: writer", "pid": 2104, "cpu_percent": 14.5},
-                {"name": "postgres: walwriter", "pid": 2105, "cpu_percent": 8.2},
-                {"name": "ebs_sync_daemon", "pid": 2110, "cpu_percent": 3.1},
+                {"name": "postgres: writer", "pid": 1501, "cpu_percent": 12.4},
+                {"name": "postgres: walwriter", "pid": 1502, "cpu_percent": 8.1},
+                {"name": "ebs_sync_daemon", "pid": 1503, "cpu_percent": 3.4},
+            ]
+        },
+    }
+
+    # AWS WORKER 06: AdaptiveCloud-Worker-06-HACanary (i-02867c8160a8e5363)
+    snap_aws6 = {
+        "id": f"m-aws6-{int(now_ts * 1000)}",
+        "host_id": "aws-worker-06",
+        "ts": iso_ts,
+        "cpu": round(11.4 + 1.2 * ((t % 4) - 2.0), 1),
+        "mem": 32.0,
+        "disk": 18.0,
+        "conn_count": 12,
+        "load": 0.15,
+        "extra": {
+            "top_cpu_processes": [
+                {"name": "consul-agent", "pid": 1601, "cpu_percent": 0.8},
+                {"name": "prometheus-node-exporter", "pid": 1602, "cpu_percent": 0.6},
+                {"name": "health-check", "pid": 1603, "cpu_percent": 0.3},
             ]
         },
     }
@@ -350,10 +457,12 @@ def generate_fleet_snapshots() -> None:
         "host-laptop-02": snap_2,
         "host-laptop-03": snap_3,
         "host-laptop-04": snap_4,
-        "aws-worker-01": snap_aws,
+        "aws-worker-01": snap_aws1,
         "aws-worker-02": snap_aws2,
-        "aws-gateway-01": snap_gw,
-        "aws-db-01": snap_db,
+        "aws-worker-03": snap_aws3,
+        "aws-worker-04": snap_aws4,
+        "aws-worker-05": snap_aws5,
+        "aws-worker-06": snap_aws6,
     }
 
     # Universally apply any active anomalies to ANY target host
@@ -554,13 +663,26 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
         # Anomaly Injection: POST /demo/inject or /api/v1/demo/inject
         if clean in ("/demo/inject", "/api/v1/demo/inject"):
             host_id = body.get("host_id", "aws-worker-01")
-            attack_type = body.get("attack_type", "ddos").lower()
+            
+            # Map default attack type based on host role if not specified
+            default_attacks = {
+                "aws-worker-01": "ddos",
+                "aws-worker-02": "cryptomining",
+                "aws-worker-03": "brute_force",
+                "aws-worker-04": "port_scan",
+                "aws-worker-05": "cloud_storage",
+                "aws-worker-06": "canary_drift",
+            }
+            attack_type = body.get("attack_type") or default_attacks.get(host_id, "ddos")
+            attack_type = attack_type.lower()
 
             host_label_map = {
-                "aws-worker-01": "AdaptiveCloud-Worker-01 (i-017c3c1add524779c)",
-                "aws-worker-02": "AdaptiveCloud-Worker-02 (i-0ab2c3d4e5f678901)",
-                "aws-gateway-01": "AWS Cloud Ingress Gateway (i-09f1a238e5b4c10aa)",
-                "aws-db-01": "AWS RDS Database Primary (i-0bb8214f9d0c24e12)",
+                "aws-worker-01": "AdaptiveCloud-Worker-01-IngressGateway (i-017c3c1add524779c)",
+                "aws-worker-02": "AdaptiveCloud-Worker-02-AppServer (i-062792c1aed63a040)",
+                "aws-worker-03": "AdaptiveCloud-Worker-03-BastionHost (i-0b486412d8078ec4b)",
+                "aws-worker-04": "AdaptiveCloud-Worker-04-Microservice (i-0293219dcfcc1f414)",
+                "aws-worker-05": "AdaptiveCloud-Worker-05-StorageEngine (i-0a70f7c7afdcbed3a)",
+                "aws-worker-06": "AdaptiveCloud-Worker-06-HACanary (i-02867c8160a8e5363)",
                 "host-laptop-01": f"Local Host ({HOSTNAME})",
                 "host-laptop-02": "Lab Workstation A (Simulated)",
                 "host-laptop-03": "Dev Workstation B (Simulated Linux)",
@@ -577,37 +699,70 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
             except Exception as exc:
                 inc = {"incident_id": f"inc-aws-manual-{int(time.time())}", "error": str(exc)}
 
-            if attack_type == "ddos":
+            if attack_type in ("ddos", "dos"):
                 active_anomalies[host_id] = {
-                    "cpu": 93.8,
+                    "cpu": 94.6,
                     "mem": 78.4,
                     "conn_count": 520,
                     "type": "ddos",
                     "processes": [
-                        {"name": "syn_flood_ingress", "pid": 9811, "cpu_percent": 84.5},
+                        {"name": "syn_flood_ingress", "pid": 9811, "cpu_percent": 86.2},
                         {"name": "iptables_drop", "pid": 9812, "cpu_percent": 7.4},
                     ],
                 }
             elif attack_type == "cryptomining":
                 active_anomalies[host_id] = {
-                    "cpu": 98.6,
-                    "mem": 86.2,
+                    "cpu": 98.8,
+                    "mem": 88.2,
                     "conn_count": 45,
                     "type": "cryptomining",
                     "processes": [
-                        {"name": "xmrig_miner", "pid": 9941, "cpu_percent": 89.4},
-                        {"name": "stratum_daemon", "pid": 9942, "cpu_percent": 8.1},
+                        {"name": "xmrig_miner", "pid": 9941, "cpu_percent": 89.5},
+                        {"name": "stratum_daemon", "pid": 9942, "cpu_percent": 8.4},
                     ],
                 }
             elif attack_type == "brute_force":
                 active_anomalies[host_id] = {
-                    "cpu": 52.0,
-                    "mem": 58.0,
+                    "cpu": 54.2,
+                    "mem": 59.0,
                     "conn_count": 185,
                     "type": "brute_force",
                     "processes": [
-                        {"name": "sshd_auth_fail", "pid": 9710, "cpu_percent": 34.0},
-                        {"name": "hydra_spray", "pid": 9711, "cpu_percent": 12.0},
+                        {"name": "sshd_auth_fail", "pid": 9710, "cpu_percent": 38.5},
+                        {"name": "hydra_spray", "pid": 9711, "cpu_percent": 14.2},
+                    ],
+                }
+            elif attack_type == "port_scan":
+                active_anomalies[host_id] = {
+                    "cpu": 66.5,
+                    "mem": 62.0,
+                    "conn_count": 360,
+                    "type": "port_scan",
+                    "processes": [
+                        {"name": "nmap_scan_probe", "pid": 9550, "cpu_percent": 46.2},
+                        {"name": "masscan_worker", "pid": 9551, "cpu_percent": 18.0},
+                    ],
+                }
+            elif attack_type in ("cloud_storage", "ransomware", "exfiltration"):
+                active_anomalies[host_id] = {
+                    "cpu": 86.4,
+                    "mem": 89.2,
+                    "conn_count": 110,
+                    "type": "cloud_storage",
+                    "processes": [
+                        {"name": "ransom_encryptor", "pid": 9630, "cpu_percent": 74.0},
+                        {"name": "s3_bulk_exfil", "pid": 9631, "cpu_percent": 14.2},
+                    ],
+                }
+            elif attack_type in ("canary_drift", "benign"):
+                active_anomalies[host_id] = {
+                    "cpu": 32.0,
+                    "mem": 42.0,
+                    "conn_count": 24,
+                    "type": "canary_drift",
+                    "processes": [
+                        {"name": "config_drift_probe", "pid": 9680, "cpu_percent": 18.2},
+                        {"name": "cert_expiry_check", "pid": 9681, "cpu_percent": 9.5},
                     ],
                 }
             else:
@@ -710,13 +865,14 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                 l2 = fleet_history["host-laptop-02"][-1] if fleet_history["host-laptop-02"] else {}
                 l3 = fleet_history["host-laptop-03"][-1] if fleet_history["host-laptop-03"] else {}
                 l4 = fleet_history["host-laptop-04"][-1] if fleet_history["host-laptop-04"] else {}
-                aws1 = fleet_history["aws-worker-01"][-1] if fleet_history["aws-worker-01"] else {}
 
             hosts_list = [
                 {
                     "id": "host-laptop-01",
                     "hostname": HOSTNAME,
                     "display_label": f"Local Host ({HOSTNAME})",
+                    "role": "Local Dev & Hardware Telemetry Host",
+                    "role_description": "Streams actual physical machine hardware sensors (CPU, RAM, Processes).",
                     "os_version": OS_DETAILS,
                     "agent_platform": "windows",
                     "ip_address": LOCAL_IP,
@@ -729,48 +885,29 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                     "is_active": True,
                     "last_seen": datetime.now(timezone.utc).isoformat(),
                 },
-                {
-                    "id": "aws-worker-01",
-                    "hostname": "AdaptiveCloud-Worker-01",
-                    "display_label": "AWS EC2 Worker 01 (i-017c3c1add524779c)",
-                    "os_version": "Amazon Linux 2023 (ap-south-1b · Mumbai)",
-                    "agent_platform": "linux",
-                    "ip_address": "3.108.250.115",
-                    "status": "online",
-                    "is_physical": False,
-                    "is_cloud": True,
-                    "cpu": round(aws1.get("cpu", 18.2), 1),
-                    "mem": round(aws1.get("mem", 44.5), 1),
-                    "disk": round(aws1.get("disk", 22.8), 1),
-                    "instance_id": "i-017c3c1add524779c",
-                    "region": "ap-south-1b (Mumbai)",
-                    "type": "t2.micro (Free Tier)",
-                    "is_active": True,
-                    "last_seen": datetime.now(timezone.utc).isoformat(),
-                },
-                {
-                    "id": "aws-worker-02",
-                    "hostname": "AdaptiveCloud-Worker-02",
-                    "display_label": "AWS EC2 Worker 02 (ap-south-1a)",
-                    "os_version": "Amazon Linux 2023 (ap-south-1a · Mumbai)",
-                    "agent_platform": "linux",
-                    "ip_address": "13.233.142.76",
-                    "status": "online",
-                    "is_physical": False,
-                    "is_cloud": True,
-                    "cpu": round(14.0 + 2.0 * ((time.time() / 7) % 2 - 1), 1),
-                    "mem": 38.2,
-                    "disk": 19.5,
-                    "instance_id": "i-0ab2c3d4e5f678901",
-                    "region": "ap-south-1a (Mumbai)",
-                    "type": "t2.micro (Free Tier)",
-                    "is_active": True,
-                    "last_seen": datetime.now(timezone.utc).isoformat(),
-                },
+            ]
+
+            # Populate all 6 Real AWS EC2 Cloud Instances
+            with fleet_lock:
+                for aw in registered_aws_workers:
+                    hid = aw["id"]
+                    snap = fleet_history[hid][-1] if (hid in fleet_history and fleet_history[hid]) else {}
+                    aw_entry = {
+                        **aw,
+                        "cpu": round(snap.get("cpu", aw.get("cpu", 18.0)), 1),
+                        "mem": round(snap.get("mem", aw.get("mem", 44.0)), 1),
+                        "disk": round(snap.get("disk", aw.get("disk", 22.0)), 1),
+                        "last_seen": datetime.now(timezone.utc).isoformat(),
+                    }
+                    hosts_list.append(aw_entry)
+
+            # Append peer workstations
+            hosts_list.extend([
                 {
                     "id": "host-laptop-02",
                     "hostname": "LAB-WORKSTATION-A",
                     "display_label": "Lab Workstation A (Simulated)",
+                    "role": "Workstation Node A",
                     "os_version": "Windows 11 Enterprise",
                     "agent_platform": "windows",
                     "ip_address": "192.168.1.102",
@@ -787,6 +924,7 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                     "id": "host-laptop-03",
                     "hostname": "DEV-WORKSTATION-B",
                     "display_label": "Dev Workstation B (Simulated Linux)",
+                    "role": "Workstation Node B",
                     "os_version": "Ubuntu 24.04 LTS",
                     "agent_platform": "linux",
                     "ip_address": "192.168.1.103",
@@ -803,6 +941,7 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                     "id": "host-laptop-04",
                     "hostname": "FIELD-WORKSTATION-C",
                     "display_label": "Field Workstation C (Simulated)",
+                    "role": "Workstation Node C",
                     "os_version": "Windows 10 Pro",
                     "agent_platform": "windows",
                     "ip_address": "192.168.1.104",
@@ -815,21 +954,7 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
                     "is_active": True,
                     "last_seen": datetime.now(timezone.utc).isoformat(),
                 },
-            ]
-            # Dynamically append all AWS workers registered in registered_aws_workers
-            existing_ids = {h["id"] for h in hosts_list}
-            for aw in registered_aws_workers:
-                if aw["id"] not in existing_ids:
-                    with fleet_lock:
-                        last_snap = fleet_history[aw["id"]][-1] if (aw["id"] in fleet_history and fleet_history[aw["id"]]) else {}
-                    aw_entry = {
-                        **aw,
-                        "cpu": round(last_snap.get("cpu", aw.get("cpu", 15.0)), 1),
-                        "mem": round(last_snap.get("mem", aw.get("mem", 40.0)), 1),
-                        "disk": round(last_snap.get("disk", aw.get("disk", 20.0)), 1),
-                        "last_seen": datetime.now(timezone.utc).isoformat(),
-                    }
-                    hosts_list.append(aw_entry)
+            ])
 
             self._send_json(hosts_list)
             return
