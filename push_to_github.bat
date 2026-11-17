@@ -1,43 +1,30 @@
 @echo off
 echo =====================================================================
-echo    AdaptiveCloud - Standalone Clean Push to GitHub (No GCP Secrets)
-echo    Repo: https://github.com/pradnyandongre24-creator/adaptivecloud-security.git
+echo Removing Research Paper & Updating GitHub Repository
+echo Repo: https://github.com/pradnyandongre24-creator/adaptivecloud-security.git
 echo =====================================================================
-echo.
 cd /d "%~dp0"
 
-echo [1/6] Disconnecting old commit history containing secrets...
-git checkout --orphan standalone_main
+echo 1. Removing research paper from git repository...
+git rm -f AdaptiveCloud_Research_Paper.md 2>nul
+del /f /q AdaptiveCloud_Research_Paper.md 2>nul
 
 echo.
-echo [2/6] Unstaging any GCP credentials or deploy files...
-git rm --cached -r -f backend/gcp_credentials.json 2>nul
-git rm --cached -r -f deploy/gcp 2>nul
-git rm --cached -r -f deploy_to_google_cloud.bat 2>nul
-git rm --cached -r -f deploy_to_google_cloud.ps1 2>nul
-
-echo.
-echo [3/6] Staging all clean project files...
+echo 2. Staging changes...
 git add -A
 
 echo.
-echo [4/6] Committing clean project...
-git commit -m "feat: AdaptiveCloud autonomous self-healing cloud security & RCA framework (standalone release)"
+echo 3. Committing removal...
+git commit -m "chore: remove research paper from repository"
 
 echo.
-echo [5/6] Resetting main branch...
-git branch -D main 2>nul
-git branch -m main
-
-echo.
-echo [6/6] Pushing cleanly to your GitHub repository...
-git push -u origin main --force
+echo 4. Pushing updates to GitHub...
+git push origin main
 
 echo.
 echo =====================================================================
 if %ERRORLEVEL% EQU 0 (
-    echo [SUCCESS] Your project has been pushed cleanly to GitHub!
-    echo Visit: https://github.com/pradnyandongre24-creator/adaptivecloud-security
+    echo [SUCCESS] Research paper removed successfully from your GitHub repository!
 ) else (
     echo [ERROR] Push failed. Check your network or GitHub login.
 )

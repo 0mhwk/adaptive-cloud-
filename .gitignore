@@ -38,6 +38,8 @@ backend/gcp_credentials.json
 *credentials*.json
 deploy/gcp/
 deploy_to_google_cloud.*
+AdaptiveCloud_Research_Paper.md
+*Research_Paper*.md
 
 # ── Certificates & Keys ──────────────────────────────────────────────────────
 *.pem
