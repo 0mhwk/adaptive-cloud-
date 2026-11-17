@@ -77,8 +77,8 @@ registered_aws_workers: list[dict[str, Any]] = [
     {
         "id": "aws-worker-01",
         "instance_id": "i-017c3c1add524779c",
-        "name": "AdaptiveCloud-Worker-01-IngressGateway",
-        "display_label": "Worker 01 · Ingress Gateway (i-017c3c1add524779c)",
+        "name": "IngressGateway-Edge",
+        "display_label": "IngressGateway-Edge (i-017c3c1add524779c)",
         "role": "Edge Ingress Gateway & Reverse Proxy",
         "role_description": "Terminates public TLS, handles CloudFront/ALB edge traffic, routes REST/gRPC traffic, and enforces WAF rate-limiting.",
         "recommended_attack": "ddos",
@@ -102,8 +102,8 @@ registered_aws_workers: list[dict[str, Any]] = [
     {
         "id": "aws-worker-02",
         "instance_id": "i-062792c1aed63a040",
-        "name": "AdaptiveCloud-Worker-02-AppServer",
-        "display_label": "Worker 02 · App Server (i-062792c1aed63a040)",
+        "name": "AppServer-Compute",
+        "display_label": "AppServer-Compute (i-062792c1aed63a040)",
         "role": "Compute Application Server & Containers",
         "role_description": "Runs business logic container pods, async Celery task queues, and microservice compute runtimes.",
         "recommended_attack": "cryptomining",
@@ -127,8 +127,8 @@ registered_aws_workers: list[dict[str, Any]] = [
     {
         "id": "aws-worker-03",
         "instance_id": "i-0b486412d8078ec4b",
-        "name": "AdaptiveCloud-Worker-03-BastionHost",
-        "display_label": "Worker 03 · Bastion Host (i-0b486412d8078ec4b)",
+        "name": "BastionHost-SSH",
+        "display_label": "BastionHost-SSH (i-0b486412d8078ec4b)",
         "role": "SSH Administrative Jumpbox & Bastion",
         "role_description": "Single secure point of administrative SSH ingress into private VPC subnets with PAM authentication and auditd logging.",
         "recommended_attack": "brute_force",
@@ -152,8 +152,8 @@ registered_aws_workers: list[dict[str, Any]] = [
     {
         "id": "aws-worker-04",
         "instance_id": "i-0293219dcfcc1f414",
-        "name": "AdaptiveCloud-Worker-04-Microservice",
-        "display_label": "Worker 04 · Microservice Node (i-0293219dcfcc1f414)",
+        "name": "Microservice-VPC",
+        "display_label": "Microservice-VPC (i-0293219dcfcc1f414)",
         "role": "Internal VPC Microservice (Auth & Payments)",
         "role_description": "Internal cluster service communicating over private VPC subnets via gRPC and Redis cache for session tokens.",
         "recommended_attack": "port_scan",
@@ -177,8 +177,8 @@ registered_aws_workers: list[dict[str, Any]] = [
     {
         "id": "aws-worker-05",
         "instance_id": "i-0a70f7c7afdcbed3a",
-        "name": "AdaptiveCloud-Worker-05-StorageEngine",
-        "display_label": "Worker 05 · Storage Engine (i-0a70f7c7afdcbed3a)",
+        "name": "StorageEngine-Database",
+        "display_label": "StorageEngine-Database (i-0a70f7c7afdcbed3a)",
         "role": "Cloud Database & EBS Volume Engine",
         "role_description": "Executes relational PostgreSQL database storage, transaction write-ahead logs (WAL), and high-IOPS EBS volume sync.",
         "recommended_attack": "cloud_storage",
@@ -202,8 +202,8 @@ registered_aws_workers: list[dict[str, Any]] = [
     {
         "id": "aws-worker-06",
         "instance_id": "i-02867c8160a8e5363",
-        "name": "AdaptiveCloud-Worker-06-HACanary",
-        "display_label": "Worker 06 · HA Canary (i-02867c8160a8e5363)",
+        "name": "HACanary-Baseline",
+        "display_label": "HACanary-Baseline (i-02867c8160a8e5363)",
         "role": "HA Canary Node & Golden Baseline Benchmark",
         "role_description": "Pristine reference baseline instance continuously audited for 99.99% SLA availability and differential drift detection.",
         "recommended_attack": "canary_drift",
@@ -508,8 +508,10 @@ def sync_live_aws_instances() -> None:
                     match["private_ip"] = priv_ip
                     match["state"] = state
                     match["status"] = "online" if state == "running" else "offline"
-                    if "AdaptiveCloud-Worker" in name_tag:
-                        match["display_label"] = display
+                    clean_name = name_tag.split('(')[0].strip()
+                    if clean_name:
+                        match["name"] = clean_name
+                        match["display_label"] = f"{clean_name} ({inst_id})"
                 else:
                     new_id = f"aws-{inst_id}"
                     registered_aws_workers.append({
@@ -677,12 +679,12 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
             attack_type = attack_type.lower()
 
             host_label_map = {
-                "aws-worker-01": "AdaptiveCloud-Worker-01-IngressGateway (i-017c3c1add524779c)",
-                "aws-worker-02": "AdaptiveCloud-Worker-02-AppServer (i-062792c1aed63a040)",
-                "aws-worker-03": "AdaptiveCloud-Worker-03-BastionHost (i-0b486412d8078ec4b)",
-                "aws-worker-04": "AdaptiveCloud-Worker-04-Microservice (i-0293219dcfcc1f414)",
-                "aws-worker-05": "AdaptiveCloud-Worker-05-StorageEngine (i-0a70f7c7afdcbed3a)",
-                "aws-worker-06": "AdaptiveCloud-Worker-06-HACanary (i-02867c8160a8e5363)",
+                "aws-worker-01": "IngressGateway-Edge (i-017c3c1add524779c)",
+                "aws-worker-02": "AppServer-Compute (i-062792c1aed63a040)",
+                "aws-worker-03": "BastionHost-SSH (i-0b486412d8078ec4b)",
+                "aws-worker-04": "Microservice-VPC (i-0293219dcfcc1f414)",
+                "aws-worker-05": "StorageEngine-Database (i-0a70f7c7afdcbed3a)",
+                "aws-worker-06": "HACanary-Baseline (i-02867c8160a8e5363)",
                 "host-laptop-01": f"Local Host ({HOSTNAME})",
                 "host-laptop-02": "Lab Workstation A (Simulated)",
                 "host-laptop-03": "Dev Workstation B (Simulated Linux)",

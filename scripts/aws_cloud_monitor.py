@@ -266,7 +266,7 @@ def compute_theil_sen_ebs_forecast(historical_samples: list[tuple[float, float]]
 
 def trigger_aws_incident(
     attack_type: str,
-    target_host: str = "AdaptiveCloud-Worker-01-IngressGateway (i-017c3c1add524779c)",
+    target_host: str = "IngressGateway-Edge (i-017c3c1add524779c)",
 ) -> dict[str, Any]:
     """Generates an AWS cloud security incident, runs RCA, and registers it in the Permission Gate."""
     atk = attack_type.lower()
