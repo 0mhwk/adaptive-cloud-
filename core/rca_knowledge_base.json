@@ -1,0 +1,450 @@
+{
+  "version": "2.0.0",
+  "generated_at": "2026-11-15T03:45:00Z",
+  "threat_families": {
+    "brute_force": {
+      "display_name": "Brute Force / Credential Access",
+      "mitre_tactic": "Credential Access (TA0006)",
+      "default_mitre_technique": "T1110",
+      "typical_root_causes": [
+        "Authentication endpoint (SSH, RDP, SMB, Web Login) exposed directly to untrusted WAN without rate-limiting",
+        "Absence of account lockout policy allowing high-velocity credential stuffing and dictionary attacks",
+        "Use of default, weak, or previously compromised credentials across enterprise accounts",
+        "Legacy insecure protocol enabled (e.g., Telnet, unencrypted FTP, unauthenticated RDP)"
+      ],
+      "primary_signals": ["failed_logins", "active_connections"],
+      "feature_thresholds": {
+        "failed_logins_multiplier": 3.0,
+        "active_connections_multiplier": 1.5
+      },
+      "alternative_hypotheses": [
+        "Misconfigured administrative automation script or scheduled task with expired credentials",
+        "Legitimate user experiencing keyboard mapping issue or repeated password typos",
+        "Internal vulnerability scan conducted by authorized SecOps audit team"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_BLOCK_SOURCE_IP",
+          "name": "Host Firewall Dynamic Inbound Block",
+          "description": "Block inbound traffic from offending remote IP via host firewall rule for 60 minutes",
+          "risk_level": "low",
+          "reversible": true,
+          "rollback_steps": "Remove dynamic block rule from host firewall adapter",
+          "expected_outcome": "Immediate termination of incoming authentication attempts from source IP"
+        },
+        {
+          "action_id": "ACT_LOCKOUT_ACCOUNT_TEMP",
+          "name": "Temporary Target Account Lockout",
+          "description": "Apply temporary 15-minute security lock on targeted user account to prevent compromise",
+          "risk_level": "medium",
+          "reversible": true,
+          "rollback_steps": "Unlock target account via admin identity provider or net user command",
+          "expected_outcome": "Adversary dictionary attacks blocked even if correct password is found"
+        }
+      ]
+    },
+    "ddos": {
+      "display_name": "Volumetric DoS / DDoS Flood",
+      "mitre_tactic": "Impact (TA0040)",
+      "default_mitre_technique": "T1498",
+      "typical_root_causes": [
+        "Volumetric packet flood assaulting ingress gateway without edge rate-limiting",
+        "Exhaustion of TCP state table or connection socket limits via SYN/ACK/RST floods",
+        "Distributed adversary botnet coordinating amplified reflection traffic (DNS/NTP/CLDAP/Memcached)",
+        "Missing Cloud CDN or edge Cloud Armor shielding on public API endpoints"
+      ],
+      "primary_signals": ["inbound_traffic", "active_connections", "cpu"],
+      "feature_thresholds": {
+        "inbound_traffic_multiplier": 5.0,
+        "active_connections_multiplier": 2.0
+      },
+      "alternative_hypotheses": [
+        "Unscheduled organic traffic surge (flash crowd) following marketing campaign",
+        "Upstream ISP routing anomaly or BGP route leak reflecting legitimate traffic",
+        "Large bulk database sync or automated offsite file backup transfer"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_GCP_ARMOR_RATE_LIMIT",
+          "name": "Google Cloud Armor Edge Rate-Limiting",
+          "description": "Deploy rate-based ban rule on Google Cloud Armor security policy at global edge",
+          "risk_level": "low",
+          "reversible": true,
+          "rollback_steps": "Delete or disable rate-limit rule in Cloud Armor security policy",
+          "expected_outcome": "Attacking botnet packets dropped at edge POPs before entering VPC network"
+        },
+        {
+          "action_id": "ACT_HOST_SYN_RATE_LIMIT",
+          "name": "Host Ingress Socket Throttling",
+          "description": "Apply SYN flood protection and connection threshold limits on host network adapter",
+          "risk_level": "low",
+          "reversible": true,
+          "rollback_steps": "Reset TCP SynAttackProtect registry / sysctl parameters to baseline",
+          "expected_outcome": "State table exhaustion mitigated; legitimate connection latency normalized"
+        }
+      ]
+    },
+    "dos": {
+      "display_name": "Denial of Service (DoS)",
+      "mitre_tactic": "Impact (TA0040)",
+      "default_mitre_technique": "T1499",
+      "typical_root_causes": [
+        "Single-source high-rate packet or connection exhaustion flooding host ingress socket buffers",
+        "Slowloris or Slow POST connection exhaustion holding server worker threads open",
+        "Algorithmic ReDoS or HTTP/2 Rapid Reset exploiting parsing overhead"
+      ],
+      "primary_signals": ["inbound_traffic", "active_connections"],
+      "feature_thresholds": {
+        "inbound_traffic_multiplier": 4.0,
+        "active_connections_multiplier": 2.0
+      },
+      "alternative_hypotheses": [
+        "Spike in legitimate client transactions",
+        "Internal test script running automated benchmark load"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_GCP_ARMOR_RATE_LIMIT",
+          "name": "Cloud Armor Edge Rate-Limiting & Ingress Drop",
+          "description": "Deploy edge rate-limiting and drop rules against offending source IP/CIDR",
+          "risk_level": "low",
+          "reversible": true,
+          "rollback_steps": "Remove rule from Cloud Armor policy",
+          "expected_outcome": "Ingress packet volume normalized to baseline"
+        }
+      ]
+    },
+    "port_scan": {
+      "display_name": "Network Service Reconnaissance / Port Scan",
+      "mitre_tactic": "Discovery (TA0007)",
+      "default_mitre_technique": "T1046",
+      "typical_root_causes": [
+        "External adversary probing perimeter hosts for exposed services and unpatched vulnerabilities",
+        "Host firewall configured in permissive or passive logging mode",
+        "Default port configurations without network isolation"
+      ],
+      "primary_signals": ["active_connections", "inbound_traffic"],
+      "feature_thresholds": {
+        "active_connections_multiplier": 2.0,
+        "inbound_traffic_multiplier": 1.5
+      },
+      "alternative_hypotheses": [
+        "Scheduled enterprise vulnerability assessment scanner (e.g., Nessus, Qualys, OpenVAS)",
+        "Network asset inventory discovery tool mapping LAN hardware",
+        "Transient network socket churn from rapid microservice restarts"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_DROP_SCANNER_IP",
+          "name": "Drop Scanner Source IP",
+          "description": "Inject dynamic firewall drop rule for scanning source IP for 30 minutes",
+          "risk_level": "low",
+          "reversible": true,
+          "rollback_steps": "Remove drop rule from local firewall table",
+          "expected_outcome": "Scanning attempts silently dropped, denying port state intelligence to adversary"
+        }
+      ]
+    },
+    "port_scan_recon": {
+      "display_name": "Network Reconnaissance & Discovery",
+      "mitre_tactic": "Discovery (TA0007)",
+      "default_mitre_technique": "T1046",
+      "typical_root_causes": [
+        "Automated reconnaissance tools (Nmap, Shodan, Gobuster) discovering exposed services, subdomains, or metadata",
+        "Permissive firewall rules exposing internal administration services to public internet"
+      ],
+      "primary_signals": ["active_connections", "inbound_traffic"],
+      "feature_thresholds": {
+        "active_connections_multiplier": 2.0
+      },
+      "alternative_hypotheses": [
+        "Internal SecOps compliance audit scanner",
+        "Health check probe misconfiguration"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_DROP_SCANNER_IP",
+          "name": "Dynamic Scanner IP Null-Route",
+          "description": "Null-route scanning source IP and enable firewall stealth mode",
+          "risk_level": "low",
+          "reversible": true,
+          "rollback_steps": "Delete null-route rule",
+          "expected_outcome": "Target appears offline; reconnaissance probes denied"
+        }
+      ]
+    },
+    "cryptomining": {
+      "display_name": "Unauthorized Cryptomining / Resource Hijacking",
+      "mitre_tactic": "Impact (TA0040)",
+      "default_mitre_technique": "T1496",
+      "typical_root_causes": [
+        "Execution of rogue mining daemon (e.g., XMRig) dropped via RCE or malicious payload",
+        "Compromised container or user account executing CPU-intensive mining processes",
+        "Insecure cron job or scheduled task running persistent mining scripts"
+      ],
+      "primary_signals": ["cpu", "ram", "active_connections"],
+      "feature_thresholds": {
+        "cpu_multiplier": 2.5,
+        "ram_multiplier": 1.2
+      },
+      "alternative_hypotheses": [
+        "Legitimate heavy batch compute workload (e.g., code compilation, video rendering, 3D modelling)",
+        "Database maintenance indexing or backup compression process",
+        "Local machine learning model training job utilizing CPU threads"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_KILL_MINING_PROCESS",
+          "name": "Terminate Rogue Mining Process",
+          "description": "Forcefully terminate high-CPU rogue PID after verifying it is not a protected OS process",
+          "risk_level": "medium",
+          "reversible": false,
+          "rollback_steps": "Cannot undo process termination; process must be manually restarted if benign",
+          "expected_outcome": "Immediate CPU utilization recovery from ~95% down to normal baseline (<20%)"
+        }
+      ]
+    },
+    "botnet": {
+      "display_name": "Botnet C2 & Reverse Shell Infiltration",
+      "mitre_tactic": "Command and Control (TA0011)",
+      "default_mitre_technique": "T1071",
+      "typical_root_causes": [
+        "Host infected with botnet implant or reverse shell (Mirai, Cobalt Strike, Meterpreter, Netcat)",
+        "Outbound beaconing to malicious C2 server over HTTP/HTTPS/DNS/Tor",
+        "Persistence achieved through cron jobs or system service backdoors"
+      ],
+      "primary_signals": ["active_connections", "cpu"],
+      "feature_thresholds": {
+        "active_connections_multiplier": 1.8
+      },
+      "alternative_hypotheses": [
+        "Long-lived outbound API websocket connection",
+        "Telemetry agent or remote administration tool"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_KILL_MINING_PROCESS",
+          "name": "Terminate Rogue PID & Quarantine Binary",
+          "description": "Terminate rogue C2 process and block outbound socket connection",
+          "risk_level": "medium",
+          "reversible": false,
+          "rollback_steps": "Restore binary from quarantine if identified as false positive",
+          "expected_outcome": "C2 communication severed and malicious binary quarantined"
+        }
+      ]
+    },
+    "web_attack": {
+      "display_name": "Web Application Exploitation",
+      "mitre_tactic": "Initial Access (TA0001) / Defense Evasion (TA0005)",
+      "default_mitre_technique": "T1190",
+      "typical_root_causes": [
+        "Unsanitized user inputs vulnerable to SQLi, XSS, or Command Injection",
+        "Server-Side Request Forgery (SSRF) targeting Cloud Metadata (169.254.169.254)",
+        "Outdated web server or framework dependency with known CVE (Log4Shell, Spring4Shell, Struts2)"
+      ],
+      "primary_signals": ["inbound_traffic", "active_connections"],
+      "feature_thresholds": {
+        "inbound_traffic_multiplier": 2.0,
+        "active_connections_multiplier": 1.8
+      },
+      "alternative_hypotheses": [
+        "Automated search engine crawler indexing web application endpoints",
+        "Authorized dynamic application security testing (DAST) scan",
+        "Client frontend retry storm caused by transient gateway error"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_WAF_INJECT_RULE",
+          "name": "Deploy Web Application Firewall Rule",
+          "description": "Inject request filter blocking specific exploit payload signature (SSRF/SQLi)",
+          "risk_level": "low",
+          "reversible": true,
+          "rollback_steps": "Remove signature filter from WAF / reverse proxy configuration",
+          "expected_outcome": "Immediate neutralization of exploitation payload without taking site offline"
+        },
+        {
+          "action_id": "ACT_BLOCK_CLIENT_SESSION",
+          "name": "Invalidate Attacking Client Session & Block IP",
+          "description": "Revoke attacker session cookie and block IP at reverse proxy gateway",
+          "risk_level": "low",
+          "reversible": true,
+          "rollback_steps": "Remove IP from reverse proxy blocklist",
+          "expected_outcome": "Attacker denied further interaction with application layer"
+        }
+      ]
+    },
+    "infiltration": {
+      "display_name": "Network Interception & Data Exfiltration",
+      "mitre_tactic": "Collection (TA0009) / Exfiltration (TA0010)",
+      "default_mitre_technique": "T1557",
+      "typical_root_causes": [
+        "ARP/DNS spoofing poisoning local network cache to intercept traffic",
+        "Unencrypted transmission allowing SSL stripping or session hijacking",
+        "Unauthorized bulk data egress over HTTPS, DNS tunneling, or external cloud storage"
+      ],
+      "primary_signals": ["inbound_traffic", "active_connections"],
+      "feature_thresholds": {
+        "inbound_traffic_multiplier": 2.5
+      },
+      "alternative_hypotheses": [
+        "Legitimate bulk offsite backup sync",
+        "Network maintenance or routing reconfiguration"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_ISOLATE_NETWORK_INTERFACE",
+          "name": "Isolate Rogue Network Interface & Flush Cache",
+          "description": "Isolate compromised virtual adapter and flush poisoned ARP/DNS cache",
+          "risk_level": "medium",
+          "reversible": true,
+          "rollback_steps": "Re-enable interface and restore baseline ARP bindings",
+          "expected_outcome": "Interception severed; network cache integrity restored"
+        }
+      ]
+    },
+    "cloud_iam": {
+      "display_name": "Cloud IAM Privilege Abuse & Key Compromise",
+      "mitre_tactic": "Persistence (TA0003) / Privilege Escalation (TA0004)",
+      "default_mitre_technique": "T1098",
+      "typical_root_causes": [
+        "Leaked or hardcoded service account JSON key committed to code repository",
+        "Compromised cloud identity attempting unauthorized role self-assignment to roles/owner",
+        "Overly permissive IAM policy violating principle of least privilege"
+      ],
+      "primary_signals": ["active_connections", "failed_logins"],
+      "feature_thresholds": {
+        "active_connections_multiplier": 1.5
+      },
+      "alternative_hypotheses": [
+        "Terraform / Infrastructure-as-Code pipeline deploying authorized IAM policy updates",
+        "Cloud architect performing scheduled permission restructuring",
+        "Automated CI/CD service account key rotation cycle"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_REVOKE_SA_KEY",
+          "name": "Revoke Compromised Service Account Key",
+          "description": "Immediately delete compromised service account key via gcloud / Cloud IAM API",
+          "risk_level": "high",
+          "reversible": false,
+          "rollback_steps": "Generate and provision new service account key to authorized services",
+          "expected_outcome": "Adversary immediately loses all access to Google Cloud project resources"
+        }
+      ]
+    },
+    "cloud_storage": {
+      "display_name": "Cloud Storage Data Exfiltration / Egress Abuse",
+      "mitre_tactic": "Exfiltration (TA0010)",
+      "default_mitre_technique": "T1537",
+      "typical_root_causes": [
+        "Storage bucket permissions inadvertently changed to allUsers / public read",
+        "Compromised credential streaming mass data downloads to untrusted external ASN",
+        "Missing bucket egress rate limits and DLP monitoring"
+      ],
+      "primary_signals": ["inbound_traffic", "active_connections"],
+      "feature_thresholds": {
+        "inbound_traffic_multiplier": 3.0
+      },
+      "alternative_hypotheses": [
+        "Authorized offsite database snapshot sync to secondary disaster recovery region",
+        "Data science pipeline exporting training datasets to big data storage",
+        "Large client downloading authorized media assets"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_FREEZE_BUCKET_EGRESS",
+          "name": "Enforce Uniform Bucket Access & Freeze Egress",
+          "description": "Enable uniform bucket-level access and temporarily halt public egress transfers",
+          "risk_level": "high",
+          "reversible": true,
+          "rollback_steps": "Restore previous bucket ACLs and remove transfer freeze",
+          "expected_outcome": "Immediate cessation of data exfiltration while data integrity remains intact"
+        }
+      ]
+    },
+    "privilege_escalation": {
+      "display_name": "Privilege Escalation & Credential Theft",
+      "mitre_tactic": "Privilege Escalation (TA0004) / Credential Access (TA0006)",
+      "default_mitre_technique": "T1003",
+      "typical_root_causes": [
+        "Exploitation of unquoted service path, weak service ACLs, or vulnerable driver",
+        "Adversary memory dumping tool (Mimikatz, ProcDump) accessing lsass.exe process",
+        "Compromised local account abusing SeDebugPrivilege or sudo misconfiguration"
+      ],
+      "primary_signals": ["cpu", "active_connections"],
+      "feature_thresholds": {
+        "cpu_multiplier": 1.8
+      },
+      "alternative_hypotheses": [
+        "Legitimate system diagnostic utility or debugger attached by system administrator",
+        "Enterprise endpoint security agent (EDR) conducting deep memory integrity inspection",
+        "Administrative software patch installation altering local services"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_TERMINATE_EXPLOIT_PID",
+          "name": "Terminate Injector Process",
+          "description": "Terminate non-system process attempting unauthorized memory handle acquisition",
+          "risk_level": "high",
+          "reversible": false,
+          "rollback_steps": "Manually restart application if identified as false positive",
+          "expected_outcome": "Prevents extraction of plaintext passwords and NTLM password hashes"
+        }
+      ]
+    },
+    "host_windows": {
+      "display_name": "Host Endpoint Credential Dumping & Persistence",
+      "mitre_tactic": "Credential Access (TA0006) / Persistence (TA0003)",
+      "default_mitre_technique": "T1003.001",
+      "typical_root_causes": [
+        "Mimikatz or ProcDump accessing LSASS process memory to harvest credentials",
+        "Adversary abusing PsExec, WMI, or lateral RDP sessions with pass-the-hash tokens",
+        "Persistence installed via scheduled tasks, registry Run keys, or rogue services",
+        "Ransomware attempting mass file encryption and volume shadow copy deletion (vssadmin)"
+      ],
+      "primary_signals": ["cpu", "active_connections"],
+      "feature_thresholds": {
+        "cpu_multiplier": 2.0
+      },
+      "alternative_hypotheses": [
+        "Authorized administrative automation using PowerShell or WMI",
+        "Enterprise antivirus full system scan or memory inspection"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_TERMINATE_EXPLOIT_PID",
+          "name": "Terminate Exploit Process & Purge Session Tokens",
+          "description": "Terminate malicious process, purge Kerberos tickets via klist purge, and restore shadow copies",
+          "risk_level": "high",
+          "reversible": false,
+          "rollback_steps": "Manually restart application if identified as benign",
+          "expected_outcome": "Exploit execution halted, memory handles closed, and credential replay prevented"
+        }
+      ]
+    },
+    "benign": {
+      "display_name": "Benign Telemetry Baseline",
+      "mitre_tactic": "None",
+      "default_mitre_technique": null,
+      "typical_root_causes": [
+        "Normal operational system and network workloads within nominal thresholds"
+      ],
+      "primary_signals": [],
+      "feature_thresholds": {},
+      "alternative_hypotheses": [
+        "Low-and-slow stealth intrusion operating below statistical deviation thresholds"
+      ],
+      "recommended_actions": [
+        {
+          "action_id": "ACT_CONTINUE_MONITORING",
+          "name": "Maintain Passive Monitoring",
+          "description": "No defensive action required. System operating within baseline bounds",
+          "risk_level": "low",
+          "reversible": true,
+          "rollback_steps": "None",
+          "expected_outcome": "Continuous telemetry streaming and passive anomaly evaluation"
+        }
+      ]
+    }
+  }
+}

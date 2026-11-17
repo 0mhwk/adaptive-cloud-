@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Crisp Monochrome Black & White Theme */
+.dark body {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Surface Overrides - Pitch Black & Crisp Borders */
+.dark .bg-slate-900,
+.dark .bg-slate-950,
+.dark .bg-gray-900,
+.dark .bg-gray-950 {
+  background-color: #09090b !important;
+}
+
+.dark .border-slate-800,
+.dark .border-slate-700,
+.dark .border-gray-800 {
+  border-color: #27272a !important;
+}
+
+.dark .border-slate-100 {
+  border-color: #18181b !important;
+}
+
+/* White Glow Accents */
+.glow-white {
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.glow-white-sm {
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-zinc-800 rounded-full;
+  }
+}

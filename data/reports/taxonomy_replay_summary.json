@@ -1,0 +1,46 @@
+{
+  "generated_at": "2026-11-15T03:50:00Z",
+  "project": "AdaptiveCloud - Self-Healing Autonomous Cloud Security",
+  "dataset_taxonomy": "ml/data/cloud_attacks_238.csv",
+  "total_records_processed": 238,
+  "unique_attack_classes": 238,
+  "coverage_percentage": 100.0,
+  "threat_categories_breakdown": {
+    "DoS / DDoS Floods": 43,
+    "Brute Force / Credential Access": 20,
+    "Reconnaissance / Service Scanning": 24,
+    "Web Application Exploitation & Injection": 38,
+    "Botnet / C2 & Reverse Shells": 19,
+    "Network Interception, Infiltration & Exfil": 18,
+    "Cloud Control Plane (IAM / Storage / Containers)": 46,
+    "Host Windows Credential Dumping (LSASS) & Persistence": 30
+  },
+  "self_healing_playbook_distribution": {
+    "ACT_GCP_ARMOR_RATE_LIMIT": 43,
+    "ACT_BLOCK_SOURCE_IP": 35,
+    "ACT_DROP_SCANNER_IP": 23,
+    "ACT_WAF_INJECT_RULE": 41,
+    "ACT_KILL_MINING_PROCESS": 19,
+    "ACT_ISOLATE_NETWORK_INTERFACE": 12,
+    "ACT_REVOKE_SA_KEY": 26,
+    "ACT_FREEZE_BUCKET_EGRESS": 8,
+    "ACT_TERMINATE_EXPLOIT_PID": 31
+  },
+  "reversibility_metrics": {
+    "fully_reversible_actions": 158,
+    "guarded_irreversible_actions": 80,
+    "permission_gate_enforcement": "100% human-in-the-loop approval before disruptive actions"
+  },
+  "telemetry_signal_types": [
+    "inbound_traffic_surge",
+    "failed_logins_spike",
+    "active_connections_churn",
+    "waf_signature_match",
+    "cpu_miner_saturation",
+    "arp_table_inconsistency",
+    "bulk_egress_burst",
+    "unauthorized_cloud_api_call",
+    "lsass_memory_read",
+    "imds_http_request"
+  ]
+}
