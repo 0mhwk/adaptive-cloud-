@@ -386,35 +386,45 @@ def sync_live_aws_instances() -> None:
         for inst in live_list:
             if inst.get("is_live_aws"):
                 inst_id = inst.get("instance_id")
-                # Update Worker 01 with live state & IP
-                if inst_id == "i-017c3c1add524779c":
-                    registered_aws_workers[0]["public_ip"] = inst.get("public_ip", "3.108.250.115")
-                    registered_aws_workers[0]["private_ip"] = inst.get("private_ip", "172.31.6.242")
-                    registered_aws_workers[0]["state"] = inst.get("state", "running")
+                pub_ip = inst.get("public_ip") or "N/A"
+                priv_ip = inst.get("private_ip") or "N/A"
+                state = inst.get("state", "running")
+                name_tag = inst.get("name") or inst_id
+                display = f"{name_tag.split('(')[0].strip()} ({inst_id})" if name_tag else f"AWS EC2 ({inst_id})"
+
+                match = next((w for w in registered_aws_workers if w["id"] == f"aws-{inst_id}" or w.get("instance_id") == inst_id), None)
+                if match:
+                    match["public_ip"] = pub_ip
+                    match["ip_address"] = pub_ip
+                    match["private_ip"] = priv_ip
+                    match["state"] = state
+                    match["status"] = "online" if state == "running" else "offline"
+                    if "AdaptiveCloud-Worker" in name_tag:
+                        match["display_label"] = display
                 else:
                     new_id = f"aws-{inst_id}"
-                    if not any(w["id"] == new_id for w in registered_aws_workers):
-                        registered_aws_workers.append({
-                            "id": new_id,
-                            "instance_id": inst_id,
-                            "name": inst.get("name", inst_id),
-                            "display_label": f"AWS EC2 ({inst_id})",
-                            "type": inst.get("type", "t2.micro"),
-                            "state": inst.get("state", "running"),
-                            "public_ip": inst.get("public_ip", "N/A"),
-                            "private_ip": inst.get("private_ip", "N/A"),
-                            "region": "ap-south-1 (Mumbai)",
-                            "os_version": "Amazon Linux 2023",
-                            "agent_platform": "linux",
-                            "status": "online" if inst.get("state") == "running" else "offline",
-                            "is_cloud": True,
-                            "is_physical": False,
-                            "cpu": 15.0,
-                            "mem": 42.0,
-                            "disk": 20.0,
-                        })
-                        if new_id not in fleet_history:
-                            fleet_history[new_id] = collections.deque(maxlen=HISTORY_LEN)
+                    registered_aws_workers.append({
+                        "id": new_id,
+                        "instance_id": inst_id,
+                        "name": name_tag,
+                        "display_label": display,
+                        "type": inst.get("type", "t2.micro"),
+                        "state": state,
+                        "ip_address": pub_ip,
+                        "public_ip": pub_ip,
+                        "private_ip": priv_ip,
+                        "region": "ap-south-1 (Mumbai)",
+                        "os_version": "Amazon Linux 2023",
+                        "agent_platform": "linux",
+                        "status": "online" if state == "running" else "offline",
+                        "is_cloud": True,
+                        "is_physical": False,
+                        "cpu": 15.0,
+                        "mem": 42.0,
+                        "disk": 20.0,
+                    })
+                    if new_id not in fleet_history:
+                        fleet_history[new_id] = collections.deque(maxlen=HISTORY_LEN)
     except Exception as exc:
         logger.debug("Live AWS sync note: %s", exc)
 
