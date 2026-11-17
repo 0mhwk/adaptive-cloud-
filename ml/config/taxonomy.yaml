@@ -120,6 +120,10 @@ mappings:
       family: "botnet"
       subtype: "backdoor_implant"
       l1: 1
+    "Backdoor":
+      family: "botnet"
+      subtype: "backdoor_implant"
+      l1: 1
     "DoS":
       family: "dos"
       subtype: "dos_generic"

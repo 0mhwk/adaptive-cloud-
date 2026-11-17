@@ -54,14 +54,40 @@ logging.basicConfig(
 )
 logger = logging.getLogger("MultiLaptopSimulator")
 
-# Storage for all 4 laptops
+# Storage for all physical & AWS cloud nodes
 fleet_history: dict[str, collections.deque[dict[str, Any]]] = {
     "host-laptop-01": collections.deque(maxlen=HISTORY_LEN),
     "host-laptop-02": collections.deque(maxlen=HISTORY_LEN),
     "host-laptop-03": collections.deque(maxlen=HISTORY_LEN),
     "host-laptop-04": collections.deque(maxlen=HISTORY_LEN),
+    "aws-worker-01": collections.deque(maxlen=HISTORY_LEN),
+    "aws-worker-02": collections.deque(maxlen=HISTORY_LEN),
 }
 fleet_lock = threading.Lock()
+
+# Registered AWS EC2 Cloud Fleet (ap-south-1 Mumbai)
+registered_aws_workers: list[dict[str, Any]] = [
+    {
+        "id": "aws-worker-01",
+        "instance_id": "i-017c3c1add524779c",
+        "name": "AdaptiveCloud-Worker-01",
+        "display_label": "AWS EC2 Worker 01 (i-017c3c1add524779c)",
+        "type": "t2.micro",
+        "state": "running",
+        "public_ip": "3.108.250.115",
+        "private_ip": "172.31.39.112",
+        "region": "ap-south-1b (Mumbai)",
+        "os_version": "Amazon Linux 2023 (ap-south-1b)",
+        "agent_platform": "linux",
+        "status": "online",
+        "is_cloud": True,
+        "is_physical": False,
+        "cpu": 18.2,
+        "mem": 44.5,
+        "disk": 22.8,
+        "launch_time": "2026-11-17T09:27:00Z",
+    }
+]
 
 HOSTNAME = socket.gethostname()
 LOCAL_IP = "127.0.0.1"
@@ -175,11 +201,50 @@ def generate_fleet_snapshots() -> None:
         },
     }
 
+    # AWS WORKER: AdaptiveCloud-Worker-01 (i-017c3c1add524779c)
+    snap_aws = {
+        "id": f"m-aws-{int(now_ts * 1000)}",
+        "host_id": "aws-worker-01",
+        "ts": iso_ts,
+        "cpu": round(18.0 + 3.0 * ((t % 5) - 2.0), 1),
+        "mem": 44.5,
+        "disk": 22.8,
+        "conn_count": 14,
+        "load": 0.35,
+        "extra": {
+            "top_cpu_processes": [
+                {"name": "python3 (agent)", "pid": 1102, "cpu_percent": 1.2},
+                {"name": "systemd", "pid": 1, "cpu_percent": 0.4},
+                {"name": "sshd", "pid": 890, "cpu_percent": 0.2},
+            ]
+        },
+    }
+
+    # AWS WORKER 2: ap-south-1a (Mumbai) — Healthy secondary worker
+    snap_aws2 = {
+        "id": f"m-aws2-{int(now_ts * 1000)}",
+        "host_id": "aws-worker-02",
+        "ts": iso_ts,
+        "cpu": round(14.0 + 2.0 * ((t % 7) - 3.5), 1),
+        "mem": 38.2,
+        "disk": 19.5,
+        "conn_count": 8,
+        "load": 0.22,
+        "extra": {
+            "top_cpu_processes": [
+                {"name": "nginx", "pid": 1201, "cpu_percent": 0.8},
+                {"name": "systemd", "pid": 1, "cpu_percent": 0.3},
+            ]
+        },
+    }
+
     with fleet_lock:
         fleet_history["host-laptop-01"].append(snap_1)
         fleet_history["host-laptop-02"].append(snap_2)
         fleet_history["host-laptop-03"].append(snap_3)
         fleet_history["host-laptop-04"].append(snap_4)
+        fleet_history["aws-worker-01"].append(snap_aws)
+        fleet_history["aws-worker-02"].append(snap_aws2)
 
 
 def background_loop() -> None:
@@ -351,6 +416,128 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(info).encode("utf-8"))
             return
 
+        if clean in ("/hosts", "/api/v1/hosts"):
+            self._set_cors()
+            # Pull live readings from fleet history
+            with fleet_lock:
+                l1 = fleet_history["host-laptop-01"][-1] if fleet_history["host-laptop-01"] else {}
+                l2 = fleet_history["host-laptop-02"][-1] if fleet_history["host-laptop-02"] else {}
+                l3 = fleet_history["host-laptop-03"][-1] if fleet_history["host-laptop-03"] else {}
+                l4 = fleet_history["host-laptop-04"][-1] if fleet_history["host-laptop-04"] else {}
+                aws1 = fleet_history["aws-worker-01"][-1] if fleet_history["aws-worker-01"] else {}
+
+            hosts_list = [
+                {
+                    "id": "host-laptop-01",
+                    "hostname": HOSTNAME,
+                    "display_label": f"Local Host ({HOSTNAME})",
+                    "os_version": OS_DETAILS,
+                    "agent_platform": "windows",
+                    "ip_address": LOCAL_IP,
+                    "status": "online",
+                    "is_physical": True,
+                    "is_cloud": False,
+                    "cpu": round(l1.get("cpu", 25), 1),
+                    "mem": round(l1.get("mem", 52), 1),
+                    "disk": round(l1.get("disk", 45), 1),
+                    "is_active": True,
+                    "last_seen": datetime.now(timezone.utc).isoformat(),
+                },
+                {
+                    "id": "aws-worker-01",
+                    "hostname": "AdaptiveCloud-Worker-01",
+                    "display_label": "AWS EC2 Worker 01 (i-017c3c1add524779c)",
+                    "os_version": "Amazon Linux 2023 (ap-south-1b · Mumbai)",
+                    "agent_platform": "linux",
+                    "ip_address": "3.108.250.115",
+                    "status": "online",
+                    "is_physical": False,
+                    "is_cloud": True,
+                    "cpu": round(aws1.get("cpu", 18.2), 1),
+                    "mem": round(aws1.get("mem", 44.5), 1),
+                    "disk": round(aws1.get("disk", 22.8), 1),
+                    "instance_id": "i-017c3c1add524779c",
+                    "region": "ap-south-1b (Mumbai)",
+                    "type": "t2.micro (Free Tier)",
+                    "is_active": True,
+                    "last_seen": datetime.now(timezone.utc).isoformat(),
+                },
+                {
+                    "id": "aws-worker-02",
+                    "hostname": "AdaptiveCloud-Worker-02",
+                    "display_label": "AWS EC2 Worker 02 (ap-south-1a)",
+                    "os_version": "Amazon Linux 2023 (ap-south-1a · Mumbai)",
+                    "agent_platform": "linux",
+                    "ip_address": "13.233.142.76",
+                    "status": "online",
+                    "is_physical": False,
+                    "is_cloud": True,
+                    "cpu": round(14.0 + 2.0 * ((time.time() / 7) % 2 - 1), 1),
+                    "mem": 38.2,
+                    "disk": 19.5,
+                    "instance_id": "i-0ab2c3d4e5f678901",
+                    "region": "ap-south-1a (Mumbai)",
+                    "type": "t2.micro (Free Tier)",
+                    "is_active": True,
+                    "last_seen": datetime.now(timezone.utc).isoformat(),
+                },
+                {
+                    "id": "host-laptop-02",
+                    "hostname": "LAB-WORKSTATION-A",
+                    "display_label": "Lab Workstation A (Simulated)",
+                    "os_version": "Windows 11 Enterprise",
+                    "agent_platform": "windows",
+                    "ip_address": "192.168.1.102",
+                    "status": "online",
+                    "is_physical": True,
+                    "is_cloud": False,
+                    "cpu": round(l2.get("cpu", 64), 1),
+                    "mem": round(l2.get("mem", 72), 1),
+                    "disk": 68,
+                    "is_active": True,
+                    "last_seen": datetime.now(timezone.utc).isoformat(),
+                },
+                {
+                    "id": "host-laptop-03",
+                    "hostname": "DEV-WORKSTATION-B",
+                    "display_label": "Dev Workstation B (Simulated Linux)",
+                    "os_version": "Ubuntu 24.04 LTS",
+                    "agent_platform": "linux",
+                    "ip_address": "192.168.1.103",
+                    "status": "online",
+                    "is_physical": True,
+                    "is_cloud": False,
+                    "cpu": round(l3.get("cpu", 94), 1),
+                    "mem": round(l3.get("mem", 86), 1),
+                    "disk": 82,
+                    "is_active": True,
+                    "last_seen": datetime.now(timezone.utc).isoformat(),
+                },
+                {
+                    "id": "host-laptop-04",
+                    "hostname": "FIELD-WORKSTATION-C",
+                    "display_label": "Field Workstation C (Simulated)",
+                    "os_version": "Windows 10 Pro",
+                    "agent_platform": "windows",
+                    "ip_address": "192.168.1.104",
+                    "status": "online",
+                    "is_physical": True,
+                    "is_cloud": False,
+                    "cpu": round(l4.get("cpu", 42), 1),
+                    "mem": round(l4.get("mem", 68), 1),
+                    "disk": 55,
+                    "is_active": True,
+                    "last_seen": datetime.now(timezone.utc).isoformat(),
+                },
+            ]
+            # Dynamically append any additional AWS workers registered in registered_aws_workers
+            existing_ids = {h["id"] for h in hosts_list}
+            for aw in registered_aws_workers:
+                if aw["id"] not in existing_ids:
+                    hosts_list.append({**aw, "last_seen": datetime.now(timezone.utc).isoformat()})
+            self.wfile.write(json.dumps(hosts_list).encode("utf-8"))
+            return
+
         if clean in ("/peers", "/peer-laptops"):
             self._set_cors()
             peers = {
@@ -382,8 +569,15 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(peers).encode("utf-8"))
             return
 
-        for card_id in ["host-laptop-01", "host-laptop-02", "host-laptop-03", "host-laptop-04"]:
-            if clean in (f"/hosts/{card_id}/metrics", f"/{card_id}/telemetry", "/telemetry" if card_id == "host-laptop-01" else ""):
+        for card_id in ["host-laptop-01", "host-laptop-02", "host-laptop-03", "host-laptop-04", "aws-worker-01", "aws-worker-02"]:
+            if (
+                clean == f"/hosts/{card_id}/metrics"
+                or clean == f"/api/v1/hosts/{card_id}/metrics"
+                or clean.endswith(f"/hosts/{card_id}/metrics")
+                or clean == f"/{card_id}/telemetry"
+                or clean == f"/api/v1/{card_id}/telemetry"
+                or (card_id == "host-laptop-01" and clean in ("/telemetry", "/api/v1/telemetry"))
+            ):
                 self._set_cors()
                 with fleet_lock:
                     pts = list(fleet_history[card_id])

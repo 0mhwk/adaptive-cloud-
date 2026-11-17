@@ -45,7 +45,9 @@ class UNSWDatasetLoader(BaseDatasetLoader):
         if not self.raw_dir.exists():
             self.raw_dir.mkdir(parents=True, exist_ok=True)
 
-        csv_files = sorted(list(self.raw_dir.glob("*.csv")))
+        all_csvs = sorted(list(self.raw_dir.glob("*.csv")))
+        unsw_specific = [f for f in all_csvs if "unsw" in f.name.lower()]
+        csv_files = unsw_specific if unsw_specific else all_csvs
         if not csv_files:
             logger.warning("No CSV files found in %s for %s", self.raw_dir, self.dataset_name)
             return pd.DataFrame(columns=self.expected_features + PROVENANCE_COLUMNS)
@@ -97,7 +99,8 @@ class UNSWDatasetLoader(BaseDatasetLoader):
                 provenance["family"] = [m[0] for m in mapped]
                 provenance["subtype"] = [m[1] for m in mapped]
                 provenance["l1"] = [m[2] for m in mapped]
-                provenance["split"] = "unassigned"
+                split_tag = "train" if "training" in file_path.name.lower() or "train" in file_path.name.lower() else ("test" if "test" in file_path.name.lower() else "unassigned")
+                provenance["split"] = split_tag
 
                 combined = pd.concat([df_features, provenance], axis=1)
                 records.append(combined)

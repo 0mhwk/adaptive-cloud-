@@ -6,17 +6,12 @@ import { ToastProvider } from '@/components/ui/Toast';
 import { Layout } from '@/components/layout/Layout';
 import { useAuthStore } from '@/store/authStore';
 
-// Page components
+// 4 core pages
 import LoginPage from '@/pages/LoginPage';
-import { OverviewPage } from '@/pages/OverviewPage';
-import { MonitoringPage } from '@/pages/MonitoringPage';
-import AttackDetectionClassificationPage from '@/pages/AttackDetectionClassificationPage';
-import { RcaPage } from '@/pages/RcaPage';
-import ThreatPredictionPage from '@/pages/ThreatPredictionPage';
-import MaintenancePage from '@/pages/MaintenancePage';
-import ResponsesPage from '@/pages/ResponsesPage';
-import ModelsLearningPage from '@/pages/ModelsLearningPage';
-import ReportsAuditPage from '@/pages/ReportsAuditPage';
+import AttackDetectionPage from '@/pages/AttackDetectionPage';
+import RCAPage from '@/pages/RCAPage';
+import SelfHealingPage from '@/pages/SelfHealingPage';
+import PredictiveMaintenancePage from '@/pages/PredictiveMaintenancePage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,9 +25,7 @@ const queryClient = new QueryClient({
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token || s.accessToken);
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!token) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
@@ -49,16 +42,17 @@ export default function App() {
               </RequireAuth>
             }
           >
-            <Route path="/" element={<OverviewPage />} />
-            <Route path="/monitoring" element={<MonitoringPage />} />
-            <Route path="/detections" element={<AttackDetectionClassificationPage />} />
-            <Route path="/classifications" element={<AttackDetectionClassificationPage />} />
-            <Route path="/rca" element={<RcaPage />} />
-            <Route path="/predictions" element={<ThreatPredictionPage />} />
-            <Route path="/maintenance" element={<MaintenancePage />} />
-            <Route path="/responses" element={<ResponsesPage />} />
-            <Route path="/learning" element={<ModelsLearningPage />} />
-            <Route path="/reports" element={<ReportsAuditPage />} />
+            <Route path="/" element={<AttackDetectionPage />} />
+            <Route path="/rca" element={<RCAPage />} />
+            <Route path="/healing" element={<SelfHealingPage />} />
+            <Route path="/maintenance" element={<PredictiveMaintenancePage />} />
+            {/* Legacy redirects */}
+            <Route path="/detections" element={<Navigate to="/" replace />} />
+            <Route path="/monitoring" element={<Navigate to="/" replace />} />
+            <Route path="/responses" element={<Navigate to="/healing" replace />} />
+            <Route path="/predictions" element={<Navigate to="/maintenance" replace />} />
+            <Route path="/learning" element={<Navigate to="/" replace />} />
+            <Route path="/reports" element={<Navigate to="/" replace />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

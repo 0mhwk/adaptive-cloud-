@@ -1,0 +1,27 @@
+{
+  "dataset_name": "UNSW-NB15",
+  "evaluation_timestamp": "2026-11-17T13:04:50.720174+00:00",
+  "total_test_samples_evaluated": 2000,
+  "injected_dashboard_incidents": 27,
+  "injected_classes_breakdown": {
+    "Analysis": 3,
+    "Backdoor": 3,
+    "DoS": 3,
+    "Exploits": 3,
+    "Fuzzers": 3,
+    "Generic": 3,
+    "Reconnaissance": 3,
+    "Shellcode": 3,
+    "Worms": 3
+  },
+  "binary_l1_metrics": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "true_positives": 1103,
+    "true_negatives": 897,
+    "false_positives": 0,
+    "false_negatives": 0
+  }
+}
