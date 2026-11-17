@@ -308,7 +308,7 @@ class MultiLaptopHandler(BaseHTTPRequestHandler):
         # GET /incidents or /api/v1/incidents
         if clean in ("/incidents", "/api/v1/incidents"):
             self._set_cors()
-            incident_store.check_expirations(timeout_seconds=300)
+            incident_store.check_expirations(timeout_seconds=3600)
             family = query_params.get("family", [None])[0]
             status_param = query_params.get("status", [None])[0]
             source = query_params.get("source", [None])[0]

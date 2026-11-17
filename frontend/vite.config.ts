@@ -17,14 +17,14 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Proxy API calls to the FastAPI backend in dev
+      // Proxy API calls to the Telemetry Hub & API in dev
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8001',
         changeOrigin: true,
         secure: false,
       },
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: 'ws://localhost:8001',
         ws: true,
         changeOrigin: true,
         secure: false,

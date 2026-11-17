@@ -15,6 +15,7 @@ export interface Column<T> {
 export interface DataTableProps<T> {
   columns: Column<T>[];
   data: T[];
+  isLoading?: boolean;
   searchKey?: keyof T | string;
   searchColumn?: keyof T | string;
   searchPlaceholder?: string;
@@ -27,6 +28,7 @@ export interface DataTableProps<T> {
 export function DataTable<T extends Record<string, any>>({
   columns,
   data,
+  isLoading,
   searchKey,
   searchColumn,
   searchPlaceholder = 'Filter records...',
